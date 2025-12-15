@@ -339,6 +339,12 @@ const dailyFanComponents = async (
               label: `💕 Fans ${fansFormat.format(fans)} (+${fansFormat.format(fansDiff)})`,
               disabled: true,
               custom_id: `cafe:points`
+            },
+            {
+              type: ComponentType.Button,
+              style: ButtonStyle.Link,
+              label: `🔥 Pokey's Umamusume Guide`,
+              url: `https://docs.google.com/spreadsheets/d/1kat8RUx0GQ-oMtYshruxzFsnQyoqbGT8`
             }
           ]
         },
