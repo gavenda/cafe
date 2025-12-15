@@ -1,6 +1,7 @@
 import {
   APIMessageTopLevelComponent,
   APIUser,
+  ButtonStyle,
   CDNRoutes,
   ComponentType,
   ImageFormat,
@@ -17,7 +18,14 @@ import { isBlank } from './utils/strings';
 const BOGUSUME_WEBHOOK_ID = `BOGUSUME_WEBHOOK_ID`;
 const BOGUSUME_WEBHOOK_TOKEN = `BOGUSUME_WEBHOOK_TOKEN`;
 const BOGUSUME_LAST_MESSAGE_ID = `BOGUSUME_LAST_MESSAGE_ID`;
-const UMA_MOE_CLUB_URL = `https://uma.moe/api/v4/circles?circle_id=499459372`;
+
+const BOGUSUME_RANK = `BOGUSUME_RANK`;
+const BOGUSUME_LAST_RANK = `BOGUSUME_LAST_RANK`;
+const BOGUSUME_FANS = `BOGUSUME_FANS`;
+const BOGUSUME_LAST_FANS = `BOGUSUME_LAST_FANS`;
+
+const UMA_MOE_CLUB_API_URL = `https://uma.moe/api/v4/circles?circle_id=499459372`;
+const UMA_MOE_CLUB_URL = `https://uma.moe/circles/499459372`;
 
 interface DailyFan {
   year: number;
@@ -26,6 +34,7 @@ interface DailyFan {
   member_id: number;
   member_name: string;
   fans: number;
+  total_fans: number;
   created: string;
 }
 
@@ -63,7 +72,7 @@ const createWebhook = async (env: Env): Promise<[string, string] | null> => {
 };
 
 const fetchFromUmaMoe = async (env: Env) => {
-  const circleResult = await fetch(UMA_MOE_CLUB_URL);
+  const circleResult = await fetch(UMA_MOE_CLUB_API_URL);
   const circleResponseJson = await circleResult.json();
   const circleResponse = circleResponseJson as CircleResponse;
   const lastUpdated = new Date(circleResponse.circle.last_updated);
@@ -71,8 +80,14 @@ const fetchFromUmaMoe = async (env: Env) => {
   const month = lastUpdated.getUTCMonth();
   const day = lastUpdated.getUTCDate();
 
+  // Store to KV
+  await env.KV.put(BOGUSUME_RANK, circleResponse.circle.monthly_rank.toString());
+  await env.KV.put(BOGUSUME_FANS, circleResponse.circle.monthly_point.toString());
+  await env.KV.put(BOGUSUME_LAST_RANK, circleResponse.circle.yesterday_rank.toString());
+  await env.KV.put(BOGUSUME_LAST_FANS, circleResponse.circle.yesterday_points.toString());
+
   // Create a map of daily fan count and sort
-  const dailyFans: DailyFan[] = circleResponse.members
+  const dailyFans: Omit<DailyFan, 'total_fans'>[] = circleResponse.members
     .map((member) => {
       return {
         year,
@@ -103,15 +118,17 @@ const fetchFromUmaMoe = async (env: Env) => {
 
   await env.D1.batch(dailyFansBatch);
 
+  console.log(`✅ Fetched data from uma moe`);
+
   return dailyFans;
 };
 
-const dailyFansFromDb = async (env: Env, year: number, month: number, day: number) => {
-  console.log(`ℹ️  Retrieving fans from year ${year}, month ${month}, day ${day}...`);
+const dailyFansFromDb = async (env: Env, year: number, month: number, yesterday: number, day: number) => {
+  const dailyFanStatement = env.D1.prepare(
+    `SELECT id, year, month, day, member_id, member_name, fans AS total_fans, fans - LAG(fans, 1, 0) OVER(ORDER BY member_name) AS fans FROM daily_fan WHERE year = ? AND month = ? OR day = ? OR day = ? ORDER BY member_name`
+  );
 
-  const dailyFanStatement = env.D1.prepare(`SELECT * FROM daily_fan WHERE year = ? AND month = ? AND day = ?`);
-
-  const dailyFanResult = await dailyFanStatement.bind(year, month, day).all<DailyFan>();
+  const dailyFanResult = await dailyFanStatement.bind(year, month, yesterday, day).all<DailyFan>();
 
   if (dailyFanResult.success) {
     return dailyFanResult.results;
@@ -210,92 +227,126 @@ export const dailyFan = async (env: Env) => {
     env,
     today.getUTCFullYear(),
     today.getUTCMonth(),
+    yesterday.getUTCDate(),
     today.getUTCDate()
   );
-  let lastDailyFans: DailyFan[] = await dailyFansFromDb(
-    env,
-    yesterday.getUTCFullYear(),
-    yesterday.getUTCMonth(),
-    yesterday.getUTCDate()
-  );
-  const diffFans: DailyFan[] = [];
-
-  if (lastDailyFans.length <= 0) {
-    console.log(`✅ Detected no data from yesterday`);
-    lastDailyFans = dailyFans;
-  }
 
   if (dailyFans.length <= 0) {
     console.log(`✅ Detected no data for today`);
-    dailyFans = await fetchFromUmaMoe(env);
-  }
 
-  // Do a diff
-  dailyFans = dailyFans.sort((a, b) => a.member_id - b.member_id);
-  lastDailyFans = lastDailyFans.sort((a, b) => a.member_id - b.member_id);
+    await fetchFromUmaMoe(env);
 
-  for (const [index, dailyFan] of dailyFans.entries()) {
-    const fans = lastDailyFans[index].fans - dailyFans[index].fans;
-
-    if (fans > 0) {
-      diffFans.push({
-        ...dailyFan,
-        fans
-      });
-    }
+    dailyFans = await dailyFansFromDb(
+      env,
+      today.getUTCFullYear(),
+      today.getUTCMonth(),
+      yesterday.getUTCDate(),
+      today.getUTCDate()
+    );
   }
 
   // Send a message
-  if (diffFans.length > 0) {
-    const components: APIMessageTopLevelComponent[] = dailyFanComponents(today, dailyFans);
-    await sendMessage(env, webhookId, webhookToken, components);
-  } else {
-    const components: APIMessageTopLevelComponent[] = [
-      {
-        type: ComponentType.TextDisplay,
-        content: `-# Bogusume E Daily Fan Count - <t:${Math.floor(today.getTime() / 1000)}:R>`
-      },
-      {
-        type: ComponentType.TextDisplay,
-        content: `There is no results for today.`
-      }
-    ];
-    await sendMessage(env, webhookId, webhookToken, components);
-  }
+  const components: APIMessageTopLevelComponent[] = await dailyFanComponents(
+    env,
+    today,
+    yesterday,
+    dailyFans.filter((dailyFan) => dailyFan.day === today.getUTCDate()).sort((a, b) => b.fans - a.fans)
+  );
+  await sendMessage(env, webhookId, webhookToken, components);
 
   console.log(`✅ Operation Succeeded!`);
 };
 
-const dailyFanComponents = (today: Date, dailyFans: DailyFan[]): APIMessageTopLevelComponent[] => {
+const dailyFanComponents = async (
+  env: Env,
+  today: Date,
+  yesterday: Date,
+  dailyFans: DailyFan[]
+): Promise<APIMessageTopLevelComponent[]> => {
   const dailyFanStr = [];
-  const below100k = [];
+  const fansFormat = new Intl.NumberFormat('en-US', { notation: 'compact' });
+
+  const rank = await env.KV.get<number>(BOGUSUME_RANK);
+  const fans = await env.KV.get<number>(BOGUSUME_FANS);
+  const lastRank = await env.KV.get<number>(BOGUSUME_LAST_RANK);
+  const lastFans = await env.KV.get<number>(BOGUSUME_LAST_FANS);
+
+  if (!rank) return [];
+  if (!fans) return [];
+  if (!lastRank) return [];
+  if (!lastFans) return [];
+
+  const fansDiff = fans - lastFans;
+  const rankDiff = rank - lastRank;
 
   let dailyRank = 1;
-  let below100kRank = 1;
 
-  for (const [index, dailyFan] of dailyFans.entries()) {
+  for (const dailyFan of dailyFans) {
     const fanStr = new Intl.NumberFormat('en-US').format(dailyFan.fans);
 
-    if (dailyFan.fans > 100000) dailyFanStr.push(`${dailyRank++}. ${dailyFan.member_name} \`+${fanStr}\``);
-    else below100k.push(`${below100kRank++}. ${dailyFan.member_name} \`+${fanStr}\``);
+    if (dailyFan.fans > 0) dailyFanStr.push(`${dailyRank++}. ${dailyFan.member_name} \`+${fanStr}\``);
   }
+
+  const noTimeToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const noTimeYesterday = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
 
   return [
     {
-      type: ComponentType.TextDisplay,
-      content: `-# Bogusume E Daily Fan Count - <t:${Math.floor(today.getTime() / 1000)}:R>`
-    },
-    {
-      type: ComponentType.TextDisplay,
-      content: dailyFanStr.join('\n')
-    },
-    {
-      type: ComponentType.TextDisplay,
-      content: `-# Members under 100k\n-# (might include kicked members)`
-    },
-    {
-      type: ComponentType.TextDisplay,
-      content: below100k.join('\n')
+      type: ComponentType.Container,
+      components: [
+        {
+          type: ComponentType.MediaGallery,
+          items: [
+            {
+              media: {
+                url: `https://images2.alphacoders.com/118/thumb-1920-1184687.jpg`
+              }
+            }
+          ]
+        },
+        {
+          type: ComponentType.Section,
+          components: [
+            {
+              type: ComponentType.TextDisplay,
+              content: `## Bogusume E Daily Fan Count`
+            },
+            {
+              type: ComponentType.TextDisplay,
+              content: `-# Period of <t:${Math.floor(noTimeYesterday.getTime() / 1000)}:R> - <t:${Math.floor(noTimeToday.getTime() / 1000)}:R>`
+            }
+          ],
+          accessory: {
+            label: 'View Chart',
+            type: ComponentType.Button,
+            style: ButtonStyle.Link,
+            url: UMA_MOE_CLUB_URL
+          }
+        },
+        {
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.Button,
+              style: ButtonStyle.Secondary,
+              label: `🏆 Rank #${rank} (+${rankDiff})`,
+              disabled: true,
+              custom_id: `cafe:rank`
+            },
+            {
+              type: ComponentType.Button,
+              style: ButtonStyle.Secondary,
+              label: `💕 Fans ${fansFormat.format(fans)} (+${fansFormat.format(fansDiff)})`,
+              disabled: true,
+              custom_id: `cafe:points`
+            }
+          ]
+        },
+        {
+          type: ComponentType.TextDisplay,
+          content: dailyFanStr.join('\n')
+        }
+      ]
     }
   ];
 };
