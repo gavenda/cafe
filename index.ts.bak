@@ -1,0 +1,47 @@
+import { Client, Events, GatewayIntentBits } from "discord.js";
+import type { Circle } from "./src/circle";
+import type { Member } from "./src/member";
+
+const UMA_MOE_CLUB_URL = `https://uma.moe/api/v4/circles?circle_id=499459372`;
+const DISCORD_TEXT_CHANNEL = `1449861115747238034`;
+
+interface CircleResponse {
+    circle: Circle;
+    members: Member[];
+}
+
+const dailyFanCheck =  async() => {
+    const result = await fetch(UMA_MOE_CLUB_URL);
+
+    const circleResponseJson = await result.json();
+    const circleResponse = circleResponseJson as CircleResponse;
+
+    const lastUpdated = new Date(circleResponse.circle.last_updated);
+    const dayOfMonth = lastUpdated.getDate();
+
+    // Create a map of daily fan count and sort
+    const fanCountMap = circleResponse.members.map(member => {
+        return {
+            name: member.trainer_name,
+            fans: member.daily_fans[dayOfMonth - 1] ?? 0
+        }
+    })
+    .sort((memberA, memberB) => memberB.fans - memberA.fans);
+
+    console.log(fanCountMap);
+}
+
+const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+
+client.on(Events.ClientReady, async readyClient => {
+  const channel = await readyClient.channels.fetch(DISCORD_TEXT_CHANNEL);
+
+  if (!channel) return;
+    if(!channel.isSendable()) return;
+
+    await channel.send(`Hello!`);
+});
+
+// await dailyFanCheck();
+
+await client.login(process.env.DISCORD_TOKEN);

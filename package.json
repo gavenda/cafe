@@ -1,0 +1,30 @@
+{
+  "name": "cafe",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "version": "1.0.0",
+  "author": "Gavenda <gavenda@disroot.org>",
+  "license": "MIT",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "start": "wrangler dev --test-scheduled",
+    "cf-typegen": "wrangler types",
+    "format": "prettier --write src",
+    "type-check": "tsc"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/uuid": "^11.0.0",
+    "eslint": "^9.39.2",
+    "prettier": "^3.7.4",
+    "typescript-eslint": "^8.49.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "discord-interactions": "^4.4.0",
+    "discord-snowflake": "^2.0.0"
+  }
+}
