@@ -11,7 +11,13 @@
     }
   ],
   "observability": {
-    "enabled": true
+    "enabled": true,
+    "traces": {
+      "enabled": true
+    },
+    "logs": {
+      "enabled": true
+    }
   },
   "triggers": {
     "crons": ["30 16 * * *"]

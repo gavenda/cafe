@@ -66,7 +66,7 @@ const createWebhook = async (env: Env): Promise<[string, string] | null> => {
   await env.KV.put(BOGUSUME_WEBHOOK_ID, webhook.id);
   await env.KV.put(BOGUSUME_WEBHOOK_TOKEN, webhook.token);
 
-  console.log(`✅ Created webhook in ${env.DISCORD_TEXT_CHANNEL} with id ${webhook.id} and token ${webhook.token}`);
+  console.log(`✅ Created webhook in ${env.DISCORD_TEXT_CHANNEL} with id ${webhook.id}`);
 
   return [webhook.id, webhook.token];
 };
@@ -118,7 +118,7 @@ const fetchFromUmaMoe = async (env: Env) => {
 
   await env.D1.batch(dailyFansBatch);
 
-  console.log(`✅ Fetched data from uma moe`);
+  console.log(`✅ Fetched ${dailyFans.length} new items from uma.moe`);
 
   return dailyFans;
 };
@@ -189,6 +189,8 @@ const sendMessage = async (
   const message = await webhookResponse.json<RESTPostAPIWebhookWithTokenWaitResult>();
 
   await env.KV.put(BOGUSUME_LAST_MESSAGE_ID, message.id);
+
+  console.log(`✅ Sent message via webhook!`);
 };
 
 export const dailyFan = async (env: Env) => {
@@ -210,10 +212,12 @@ export const dailyFan = async (env: Env) => {
 
       webhookId = id;
       webhookToken = token;
+    } else {
+      return;
     }
   }
 
-  console.log(`✅ Using webhook id ${webhookId} and token ${webhookToken}`);
+  console.log(`✅ Using webhook id ${webhookId}`);
 
   // Perform fan check
 
@@ -232,7 +236,7 @@ export const dailyFan = async (env: Env) => {
   );
 
   if (dailyFans.filter((dailyFan) => dailyFan.day === today.getUTCDate()).length <= 0) {
-    console.log(`✅ Detected no data for today`);
+    console.log(`✅ Detected no data for day ${today.getUTCDate()}`);
 
     await fetchFromUmaMoe(env);
 
@@ -254,7 +258,7 @@ export const dailyFan = async (env: Env) => {
   );
   await sendMessage(env, webhookId, webhookToken, components);
 
-  console.log(`✅ Operation Succeeded!`);
+  console.log(`✅ Operation succeeded!`);
 };
 
 const dailyFanComponents = async (
