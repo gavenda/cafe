@@ -125,7 +125,7 @@ const fetchFromUmaMoe = async (env: Env) => {
 
 const dailyFansFromDb = async (env: Env, year: number, month: number, yesterday: number, day: number) => {
   const dailyFanStatement = env.D1.prepare(
-    `SELECT id, year, month, day, member_id, member_name, fans AS total_fans, fans - LAG(fans, 1, 0) OVER(ORDER BY member_name) AS fans FROM daily_fan WHERE year = ? AND month = ? OR day = ? OR day = ? ORDER BY member_name`
+    `SELECT id, year, month, day, member_id, member_name, fans AS total_fans, fans - LAG(fans, 1, 0) OVER(ORDER BY member_name) AS fans FROM daily_fan WHERE year = ? AND month = ? AND day IN (?, ?) ORDER BY member_name`
   );
 
   const dailyFanResult = await dailyFanStatement.bind(year, month, yesterday, day).all<DailyFan>();
@@ -231,7 +231,7 @@ export const dailyFan = async (env: Env) => {
     today.getUTCDate()
   );
 
-  if (dailyFans.length <= 0) {
+  if (dailyFans.filter((dailyFan) => dailyFan.day === today.getUTCDate()).length <= 0) {
     console.log(`✅ Detected no data for today`);
 
     await fetchFromUmaMoe(env);
@@ -350,7 +350,7 @@ const dailyFanComponents = async (
         },
         {
           type: ComponentType.TextDisplay,
-          content: dailyFanStr.join('\n')
+          content: dailyFanStr.length > 0 ? dailyFanStr.join('\n') : 'There is no results for today.'
         }
       ]
     }
