@@ -1,17 +1,6 @@
-import {
-  APIInteraction,
-  APIMessageTopLevelComponent,
-  MessageFlags,
-  RESTPostAPIInteractionFollowupJSONBody
-} from 'discord-api-types/v10';
+import { APIInteraction, RESTPostAPIInteractionFollowupJSONBody } from 'discord-api-types/v10';
 import { Application } from './application';
 import { Webhook } from './webhook';
-
-interface MessageOptions {
-  content: string;
-  components?: APIMessageTopLevelComponent[];
-  flags: MessageFlags;
-}
 
 export abstract class InteractionContext {
   env: Env;

@@ -1,5 +1,6 @@
 import { Application } from './application';
-import { dailyFan } from './daily-fan';
+import { dailyFan } from './fan/daily-fan';
+import { weeklyFan } from './fan/weekly-fan';
 
 export default {
   /**
@@ -9,7 +10,16 @@ export default {
   async fetch(request, env, executionContext): Promise<Response> {
     return new Application({ env, executionContext }).handleRequest(request);
   },
-  async scheduled(event, env, ctx): Promise<void> {
-    await dailyFan(env);
+  async scheduled(event, env): Promise<void> {
+    console.log(`Running scheduled event: ${event.cron}`);
+
+    switch (event.cron) {
+      case '0 17 * * *':
+        await dailyFan({ env });
+        break;
+      case '5 17 * * 1':
+        await weeklyFan({ env });
+        break;
+    }
   }
 } satisfies ExportedHandler<Env>;
