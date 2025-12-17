@@ -16,7 +16,7 @@ export const dailyFanComponents = (options: {
 
   let dailyRank = 1;
 
-  const rankSymbol = clubHistory.rank_diff > 0 ? `+` : `-`;
+  const rankSymbol = clubHistory.rank_diff > 0 ? `-` : `+`;
 
   for (const dailyFan of dailyFans) {
     const fanStr = new Intl.NumberFormat('en-US').format(dailyFan.fans_diff);
