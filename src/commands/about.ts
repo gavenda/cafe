@@ -46,7 +46,7 @@ export const about: ApplicationChatInputCommandHandler = {
                 },
                 {
                   type: ComponentType.TextDisplay,
-                  content: `-# I fan count Bogusume E.\n\nA mysterious girl who blends in with the shadows... and speaks with them. She can often be found sticking close to the walls, tracing odd patterns with her fingertips. According to her, however, she's always with her "friend." She enjoys sipping a nice cup of coffee, as gulping it down too quickly hurts her stomach.\n\n(source: umamusume wiki)`
+                  content: `-# I fan count Bogusume E.\n\nA mysterious girl who blends in with the shadows... and speaks with them. She can often be found sticking close to the walls, tracing odd patterns with her fingertips. According to her, however, she's always with her "friend." She enjoys sipping a nice cup of coffee, as gulping it down too quickly hurts her stomach.\n\n-# (source: umamusume wiki)`
                 }
               ],
               accessory: {

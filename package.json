@@ -24,6 +24,7 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "discord-api-types": "^0.38.37",
     "discord-interactions": "^4.4.0",
     "discord-snowflake": "^2.0.0"
   }
