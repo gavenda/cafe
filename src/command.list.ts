@@ -12,7 +12,7 @@ export const COMMAND_HISTORY: Partial<APIApplicationCommand> = {
   description: 'Looks up the fan history of a club member.',
   options: [
     {
-      type: ApplicationCommandOptionType.Integer,
+      type: ApplicationCommandOptionType.String,
       name: 'name',
       description: 'Name of the member.',
       autocomplete: true,

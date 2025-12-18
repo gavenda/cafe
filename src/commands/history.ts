@@ -126,7 +126,7 @@ export const handleMemberSearch = async (
 ): Promise<APIApplicationCommandOptionChoice[]> => {
   const search = context.getRequiredString(`name`);
 
-  const statement = context.env.D1.prepare(`SELECT member_name FROM daily_fan WHERE member_name LIKE ?`);
+  const statement = context.env.D1.prepare(`SELECT DISTINCT member_name FROM daily_fan WHERE member_name LIKE ?`);
 
   const result = await statement.bind(`%${search}%`).all<string>();
 
