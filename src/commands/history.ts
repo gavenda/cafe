@@ -128,16 +128,16 @@ export const handleMemberSearch = async (
 
   const statement = context.env.D1.prepare(`SELECT DISTINCT member_name FROM daily_fan WHERE member_name LIKE ?`);
 
-  const result = await statement.bind(`%${search}%`).all<string>();
+  const result = await statement.bind(`%${search}%`).all<{ member_name: string }>();
 
   if (!result.success) {
     return [];
   }
 
-  return result.results.map((name) => {
+  return result.results.map((member) => {
     return {
-      name,
-      value: name
+      name: member.member_name,
+      value: member.member_name
     };
   });
 };
