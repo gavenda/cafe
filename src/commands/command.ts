@@ -2,6 +2,7 @@ import { APIApplicationCommandOptionChoice, MessageFlags } from 'discord-api-typ
 import { ApplicationCommandAutocompleteContext } from '../application-command-autocomplete.context';
 import { ChatInputApplicationCommandContext } from '../chat-input-application-command.context';
 import { about } from './about';
+import { history } from './history';
 
 export interface ApplicationChatInputCommandHandler {
   /**
@@ -17,5 +18,6 @@ export interface ApplicationChatInputCommandMap {
 }
 
 export const appChatInputCommandMap: ApplicationChatInputCommandMap = {
-  about
+  about,
+  history
 };
