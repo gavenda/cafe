@@ -31,14 +31,14 @@ export const history: ApplicationChatInputCommandHandler = {
 
     const dailyFans = result.results;
     const dailyFanStr: string[] = [];
-
+    const fansFormat = new Intl.NumberFormat('en-US');
     const fans = dailyFans[0].fans;
     const rank = await findMemberRank(context, name);
 
     dailyFans
       .sort((a, b) => a.day - b.day)
       .forEach((dailyFan) => {
-        dailyFanStr.push(`- Day ${dailyFan.day} - ${dailyFan.fans}`);
+        dailyFanStr.push(`- Day ${dailyFan.day} - \`${fansFormat.format(dailyFan.fans)}\``);
       });
 
     const historyComponents: APIMessageTopLevelComponent[] = [
@@ -50,7 +50,7 @@ export const history: ApplicationChatInputCommandHandler = {
             items: [
               {
                 media: {
-                  url: `https://images4.alphacoders.com/120/thumb-1920-1200781.jpg`
+                  url: `https://w.wallhaven.cc/full/rd/wallhaven-rdx5om.png`
                 }
               }
             ]
