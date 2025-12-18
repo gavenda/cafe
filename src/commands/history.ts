@@ -32,7 +32,7 @@ export const history: ApplicationChatInputCommandHandler = {
     const dailyFans = result.results;
     const dailyFanStr: string[] = [];
     const fansFormat = new Intl.NumberFormat('en-US');
-    const fans = dailyFans[0].fans;
+    const fans = new Intl.NumberFormat('en-US', { notation: 'compact' }).format(dailyFans[0].fans);
     const rank = await findMemberRank(context, name);
 
     dailyFans
