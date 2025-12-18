@@ -107,7 +107,7 @@ const clubHistoryFromDb = async (options: {
   const { env, year, month, yesterday, day } = options;
 
   const statement = env.D1.prepare(
-    `SELECT id, year, month, day, rank, rank - LAG(rank, 1, 0) OVER(ORDER BY rank) AS rank_diff, fans, fans - LAG(fans, 1, 0) OVER(ORDER BY day) AS fans_diff FROM club_history WHERE year = ? AND month = ? AND day IN (?, ?) ORDER BY day`
+    `SELECT id, year, month, day, rank, rank - LAG(rank, 1, 0) OVER(ORDER BY day) AS rank_diff, fans, fans - LAG(fans, 1, 0) OVER(ORDER BY day) AS fans_diff FROM club_history WHERE year = ? AND month = ? AND day IN (?, ?) ORDER BY day`
   );
 
   console.log(year, month, yesterday, day);
