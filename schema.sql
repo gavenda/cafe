@@ -21,5 +21,7 @@ CREATE TABLE IF NOT EXISTS club_history (
   UNIQUE(year, month, day)
 );
 
+CREATE INDEX IF NOT EXISTS idx_member_name ON daily_fan(member_name);
+CREATE INDEX IF NOT EXISTS idx_year_month_name ON daily_fan(year, month, member_name);
 CREATE INDEX IF NOT EXISTS idx_year_month_day ON daily_fan (year, month, day);
 CREATE INDEX IF NOT EXISTS idx_club_year_month_day ON club_history (year, month, day);

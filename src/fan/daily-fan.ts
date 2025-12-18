@@ -31,16 +31,13 @@ const fetchFromUmaMoe = async (options: { env: Env }): Promise<CircleResponse> =
   const circleResponse = circleResponseJson as CircleResponse;
   const lastUpdated = new Date(circleResponse.circle.last_updated);
   const yesterdayUpdated = new Date(circleResponse.circle.yesterday_updated);
-  const year = lastUpdated.getUTCFullYear();
-  const month = lastUpdated.getUTCMonth();
-  const day = lastUpdated.getUTCDate();
 
   // Club history
   const clubHistory = [
     {
-      year,
-      month,
-      day,
+      year: lastUpdated.getUTCFullYear(),
+      month: lastUpdated.getUTCMonth(),
+      day: lastUpdated.getUTCDate(),
       rank: circleResponse.circle.monthly_rank,
       fans: circleResponse.circle.monthly_point,
       created: circleResponse.circle.last_updated
@@ -62,24 +59,31 @@ const fetchFromUmaMoe = async (options: { env: Env }): Promise<CircleResponse> =
   );
 
   // Create a map of daily fan count and sort
-  const dailyFans: ApiDailyFan[] = circleResponse.members
-    .map((member) => {
-      return {
-        year,
-        month,
-        day,
-        member_id: member.viewer_id,
-        member_name: member.trainer_name,
-        fans: member.daily_fans[day - 1] ?? 0,
-        created: circleResponse.circle.last_updated
-      };
-    })
-    .sort((memberA, memberB) => memberB.fans - memberA.fans);
+  const dailyFansMatrix: ApiDailyFan[][] = circleResponse.members.map((member) => {
+    return member.daily_fans
+      .map((fans, index) => {
+        const lastUpdatedMember = new Date(member.last_updated);
+        lastUpdatedMember.setUTCDate(index + 1);
+
+        return {
+          year: lastUpdatedMember.getUTCFullYear(),
+          month: lastUpdatedMember.getUTCMonth(),
+          day: lastUpdatedMember.getUTCDate(),
+          member_id: member.viewer_id,
+          member_name: member.trainer_name,
+          fans: fans,
+          created: member.last_updated
+        };
+      })
+      .filter((member) => new Date(member.created).getUTCDate());
+  });
+
+  const dailyFans = dailyFansMatrix.flat();
 
   // Prepare batch of insert statements
   const dailyFansBatch = dailyFans.map((dailyFan) =>
     env.D1.prepare(
-      `INSERT OR IGNORE INTO daily_fan (year, month, day, member_id, member_name, fans, created) VALUES (?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO daily_fan (year, month, day, member_id, member_name, fans, created) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(year, month, day, member_id) DO UPDATE SET fans = excluded.fans, created = excluded.created`
     ).bind(
       dailyFan.year,
       dailyFan.month,
