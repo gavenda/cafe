@@ -84,7 +84,7 @@ export const history: ApplicationChatInputCommandHandler = {
               {
                 type: ComponentType.Button,
                 style: ButtonStyle.Secondary,
-                label: `🏆 Club Fan Rank #${rank}`,
+                label: `🏆 Club Fan Rank #${rank} of 30`,
                 disabled: true,
                 custom_id: `cafe:rank`
               },
