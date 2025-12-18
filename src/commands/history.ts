@@ -144,7 +144,7 @@ export const handleMemberSearch = async (
 
 export const findMemberRank = async (context: ChatInputApplicationCommandContext, name: string) => {
   const statement = await context.env.D1.prepare(
-    `SELECT member_name, RANK() OVER (ORDER BY fans DESC) AS rank FROM daily_fan WHERE day = (SELECT MAX(day) FROM daily_fan WHERE fans <> 0); GROUP BY member_name ORDER BY rank`
+    `SELECT member_name, RANK() OVER (ORDER BY fans DESC) AS rank FROM daily_fan WHERE day = (SELECT MAX(day) FROM daily_fan WHERE fans <> 0) GROUP BY member_name ORDER BY rank`
   ).all<{ member_name: string; rank: number }>();
 
   if (!statement.success) return -1;
