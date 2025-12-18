@@ -66,7 +66,7 @@ export const dailyFanComponents = (options: {
             {
               type: ComponentType.Button,
               style: ButtonStyle.Secondary,
-              label: `🏆 Rank #${clubHistory.rank} (${rankSymbol}${clubHistory.rank_diff})`,
+              label: `🏆 Rank #${clubHistory.rank} (${rankSymbol}${Math.abs(clubHistory.rank_diff)})`,
               disabled: true,
               custom_id: `cafe:rank`
             },

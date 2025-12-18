@@ -110,12 +110,9 @@ const clubHistoryFromDb = async (options: {
     `SELECT id, year, month, day, rank, rank - LAG(rank, 1, 0) OVER(ORDER BY day) AS rank_diff, fans, fans - LAG(fans, 1, 0) OVER(ORDER BY day) AS fans_diff FROM club_history WHERE year = ? AND month = ? AND day IN (?, ?) ORDER BY day`
   );
 
-  console.log(year, month, yesterday, day);
-
   const result = await statement.bind(year, month, yesterday, day).all<ClubHistory>();
 
   if (result.success) {
-    console.log(result.results);
     return result.results[1];
   }
 
