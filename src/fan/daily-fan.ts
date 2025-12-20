@@ -206,6 +206,7 @@ export const dailyFan = async (options: { env: Env }) => {
     yesterday,
     dailyFans: dailyFans
       .filter((dailyFan) => dailyFan.day === today.getUTCDate())
+      .filter((dailyFan) => dailyFan.fans !== dailyFan.fans_diff)
       .sort((a, b) => b.fans_diff - a.fans_diff),
     clubHistory
   });

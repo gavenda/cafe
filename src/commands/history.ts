@@ -38,7 +38,11 @@ export const history: ApplicationChatInputCommandHandler = {
     dailyFans
       .sort((a, b) => a.day - b.day)
       .forEach((dailyFan) => {
-        dailyFanStr.push(`- Day ${dailyFan.day} - \`${fansFormat.format(dailyFan.fans)}\``);
+        if (dailyFan.fans > 0) {
+          dailyFanStr.push(`- Day ${dailyFan.day} - \`${fansFormat.format(dailyFan.fans)}\``);
+        } else {
+          dailyFanStr.push(`- Day ${dailyFan.day} - ☕`);
+        }
       });
 
     const historyComponents: APIMessageTopLevelComponent[] = [

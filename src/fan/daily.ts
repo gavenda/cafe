@@ -87,7 +87,7 @@ export const dailyFanComponents = (options: {
         },
         {
           type: ComponentType.TextDisplay,
-          content: dailyFanStr.length > 0 ? dailyFanStr.join('\n') : 'There is no results for today.'
+          content: dailyFanStr.length > 0 ? dailyFanStr.join('\n') : 'Cafe is away making delicious coffee ☕'
         }
       ]
     }
