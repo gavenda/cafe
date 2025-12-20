@@ -87,7 +87,10 @@ export const dailyFanComponents = (options: {
         },
         {
           type: ComponentType.TextDisplay,
-          content: dailyFanStr.length > 0 ? dailyFanStr.join('\n') : 'Cafe is away making delicious coffee ☕'
+          content:
+            dailyFanStr.length > 0
+              ? dailyFanStr.join('\n')
+              : 'Cafe is away making delicious coffee ☕\n\n-# On a serious note, there is no new fan data from uma.moe'
         }
       ]
     }
