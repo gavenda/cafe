@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS daily_fan (
   member_name TEXT NOT NULL,
   fans INTEGER NOT NULL,
   created TEXT NOT NULL,
+  unix_date INTEGER NOT NULL,
   UNIQUE(year, month, day, member_id)
 );
 

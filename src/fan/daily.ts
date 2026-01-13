@@ -1,4 +1,9 @@
-import { APIMessageTopLevelComponent, ButtonStyle, ComponentType } from 'discord-api-types/v10';
+import {
+  APIComponentInMessageActionRow,
+  APIMessageTopLevelComponent,
+  ButtonStyle,
+  ComponentType
+} from 'discord-api-types/v10';
 import { ClubHistory } from './club-history';
 import { DailyFan } from './daily-fan';
 import { UMA_MOE_CLUB_URL } from './daily-fan.constants';
@@ -7,7 +12,7 @@ export const dailyFanComponents = (options: {
   today: Date;
   yesterday: Date;
   dailyFans: DailyFan[];
-  clubHistory: ClubHistory;
+  clubHistory: ClubHistory | undefined;
 }): APIMessageTopLevelComponent[] => {
   const { today, yesterday, dailyFans, clubHistory } = options;
 
@@ -15,8 +20,6 @@ export const dailyFanComponents = (options: {
   const fansFormat = new Intl.NumberFormat('en-US', { notation: 'compact' });
 
   let dailyRank = 1;
-
-  const rankSymbol = clubHistory.rank_diff > 0 ? `-` : `+`;
 
   for (const dailyFan of dailyFans) {
     const fanStr = new Intl.NumberFormat('en-US').format(dailyFan.fans_diff);
@@ -26,6 +29,46 @@ export const dailyFanComponents = (options: {
 
   const noTimeToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const noTimeYesterday = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
+
+  let clubHistoryComponents: APIComponentInMessageActionRow[] = [];
+
+  if (clubHistory) {
+    const rankSymbol = clubHistory.rank_diff > 0 ? `-` : `+`;
+
+    clubHistoryComponents = [
+      {
+        type: ComponentType.Button,
+        style: ButtonStyle.Secondary,
+        label: `🏆 Rank #${clubHistory.rank} (${rankSymbol}${Math.abs(clubHistory.rank_diff)})`,
+        disabled: true,
+        custom_id: `cafe:rank`
+      },
+      {
+        type: ComponentType.Button,
+        style: ButtonStyle.Secondary,
+        label: `💕 Fans ${fansFormat.format(clubHistory.fans)} (+${fansFormat.format(clubHistory.fans_diff)})`,
+        disabled: true,
+        custom_id: `cafe:points`
+      }
+    ];
+  } else {
+    clubHistoryComponents = [
+      {
+        type: ComponentType.Button,
+        style: ButtonStyle.Secondary,
+        label: `🏆 Rank (N/A)`,
+        disabled: true,
+        custom_id: `cafe:rank`
+      },
+      {
+        type: ComponentType.Button,
+        style: ButtonStyle.Secondary,
+        label: `💕 Fans (N/A)`,
+        disabled: true,
+        custom_id: `cafe:points`
+      }
+    ];
+  }
 
   return [
     {
@@ -63,20 +106,7 @@ export const dailyFanComponents = (options: {
         {
           type: ComponentType.ActionRow,
           components: [
-            {
-              type: ComponentType.Button,
-              style: ButtonStyle.Secondary,
-              label: `🏆 Rank #${clubHistory.rank} (${rankSymbol}${Math.abs(clubHistory.rank_diff)})`,
-              disabled: true,
-              custom_id: `cafe:rank`
-            },
-            {
-              type: ComponentType.Button,
-              style: ButtonStyle.Secondary,
-              label: `💕 Fans ${fansFormat.format(clubHistory.fans)} (+${fansFormat.format(clubHistory.fans_diff)})`,
-              disabled: true,
-              custom_id: `cafe:points`
-            },
+            ...clubHistoryComponents,
             {
               type: ComponentType.Button,
               style: ButtonStyle.Link,

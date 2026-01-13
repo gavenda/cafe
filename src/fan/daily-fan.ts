@@ -117,7 +117,8 @@ const clubHistoryFromDb = async (options: {
   const result = await statement.bind(year, month, yesterday, day).all<ClubHistory>();
 
   if (result.success) {
-    return result.results[1];
+    if (result.results[1]) return result.results[1];
+    return undefined;
   }
 
   throw new Error(`Unable to fetch club history!`);
@@ -180,6 +181,11 @@ export const dailyFan = async (options: { env: Env }) => {
 
   const today = new Date(circleResponse.circle.last_updated);
   const yesterday = new Date(circleResponse.circle.yesterday_updated);
+
+  // Perform sanity yesterday check
+  if (yesterday.getUTCDate() === today.getUTCDate()) {
+    yesterday.setUTCDate(today.getUTCDate() - 1);
+  }
 
   console.log(`✅ Fetched data from uma.moe`);
 
