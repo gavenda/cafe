@@ -1,20 +1,16 @@
-import { APIMessageTopLevelComponent, MessageFlags } from 'discord-api-types/v10';
-import { CircleResponse } from '../circle';
-import { isBlank } from '../utils/strings';
-import { webhookCreate, webhookDeleteMessage, webhookSendMessage } from '../webhook';
-import { ClubHistory } from './club-history';
+import { getLogger } from '@logtape/logtape';
+import type { AppContext } from 'cafe/context';
+import { MessageFlags, type APIMessageTopLevelComponent } from 'discord.js';
+import type { CircleResponse } from '../circle';
+import type { ClubHistory } from './club-history';
 import { dailyFanComponents } from './daily';
-import {
-  BOGUSUME_DAILY_LAST_MESSAGE_ID,
-  BOGUSUME_DAILY_WEBHOOK_ID,
-  BOGUSUME_DAILY_WEBHOOK_TOKEN,
-  UMA_MOE_CLUB_API_URL
-} from './daily-fan.constants';
+import { UMA_MOE_CLUB_API_URL } from './daily-fan.constants';
 
 export interface DailyFan {
   year: number;
   month: number;
   day: number;
+  club_id: number;
   member_id: number;
   member_name: string;
   fans_diff: number;
@@ -24,13 +20,16 @@ export interface DailyFan {
 
 export type ApiDailyFan = Omit<DailyFan, 'fans_diff'>;
 
-const fetchFromUmaMoe = async (options: { env: Env }): Promise<CircleResponse> => {
-  const { env } = options;
-  const circleResult = await fetch(UMA_MOE_CLUB_API_URL);
+const fetchFromUmaMoe = async (options: { context: AppContext; circleId: number }): Promise<CircleResponse> => {
+  const logger = getLogger(['cafe', 'daily-fan']);
+  const { context, circleId } = options;
+  const { database } = context;
+  const circleResult = await fetch(UMA_MOE_CLUB_API_URL + circleId);
   const circleResponseJson = await circleResult.json();
   const circleResponse = circleResponseJson as CircleResponse;
-  const lastUpdated = new Date(circleResponse.circle.last_updated);
-  const yesterdayUpdated = new Date(circleResponse.circle.yesterday_updated);
+  const { circle } = circleResponse;
+  const lastUpdated = new Date(circle.last_updated);
+  const yesterdayUpdated = new Date(circle.yesterday_updated);
 
   // Club history
   const clubHistory = [
@@ -38,25 +37,39 @@ const fetchFromUmaMoe = async (options: { env: Env }): Promise<CircleResponse> =
       year: lastUpdated.getUTCFullYear(),
       month: lastUpdated.getUTCMonth(),
       day: lastUpdated.getUTCDate(),
-      rank: circleResponse.circle.monthly_rank,
-      fans: circleResponse.circle.monthly_point,
-      created: circleResponse.circle.last_updated
+      club_id: circle.circle_id,
+      rank: circle.monthly_rank,
+      fans: circle.monthly_point,
+      created: circle.last_updated
     },
     {
       year: yesterdayUpdated.getUTCFullYear(),
       month: yesterdayUpdated.getUTCMonth(),
       day: yesterdayUpdated.getUTCDate(),
-      rank: circleResponse.circle.yesterday_rank,
-      fans: circleResponse.circle.yesterday_points,
-      created: circleResponse.circle.yesterday_updated
+      club_id: circle.circle_id,
+      rank: circle.yesterday_rank,
+      fans: circle.yesterday_points,
+      created: circle.yesterday_updated
     }
   ];
 
-  const clubHistoryBatch = clubHistory.map((history) =>
-    env.D1.prepare(
-      `INSERT OR IGNORE INTO club_history (year, month, day, rank, fans, created) VALUES (?, ?, ?, ?, ?, ?)`
-    ).bind(history.year, history.month, history.day, history.rank, history.fans, history.created)
-  );
+  logger.info({ message: 'Inserting club information into database...', circleId });
+
+  database
+    .prepare(
+      `INSERT INTO club (id, name, leader) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name, leader = excluded.leader`
+    )
+    .run(circle.circle_id, circle.name, circle.leader_name);
+
+  logger.info({ message: 'Inserting club history into database...', circleId });
+
+  clubHistory.forEach((history) => {
+    database
+      .prepare(
+        `INSERT OR IGNORE INTO club_history (year, month, day, club_id, rank, fans, created) VALUES (?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(history.year, history.month, history.day, circle.circle_id, history.rank, history.fans, history.created);
+  });
 
   // Create a map of daily fan count and sort
   const dailyFansMatrix: ApiDailyFan[][] = circleResponse.members.map((member) => {
@@ -69,6 +82,7 @@ const fetchFromUmaMoe = async (options: { env: Env }): Promise<CircleResponse> =
           year: lastUpdatedMember.getUTCFullYear(),
           month: lastUpdatedMember.getUTCMonth(),
           day: lastUpdatedMember.getUTCDate(),
+          club_id: member.circle_id,
           member_id: member.viewer_id,
           member_name: member.trainer_name,
           fans: fans,
@@ -80,136 +94,163 @@ const fetchFromUmaMoe = async (options: { env: Env }): Promise<CircleResponse> =
 
   const dailyFans = dailyFansMatrix.flat();
 
-  // Prepare batch of insert statements
-  const dailyFansBatch = dailyFans.map((dailyFan) =>
-    env.D1.prepare(
-      `INSERT INTO daily_fan (year, month, day, member_id, member_name, fans, created) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(year, month, day, member_id) DO UPDATE SET fans = excluded.fans, created = excluded.created`
-    ).bind(
-      dailyFan.year,
-      dailyFan.month,
-      dailyFan.day,
-      dailyFan.member_id,
-      dailyFan.member_name,
-      dailyFan.fans,
-      dailyFan.created
-    )
-  );
+  logger.info({ message: 'Inserting daily fans into database...', circleId });
 
-  await env.D1.batch(clubHistoryBatch);
-  await env.D1.batch(dailyFansBatch);
+  // Prepare batch of insert statements
+  dailyFans.forEach((dailyFan) => {
+    database
+      .prepare(
+        `INSERT INTO daily_fan (year, month, day, club_id, member_id, member_name, fans, created, unix_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(year, month, day, member_id) DO UPDATE SET fans = excluded.fans, created = excluded.created`
+      )
+      .run(
+        dailyFan.year,
+        dailyFan.month,
+        dailyFan.day,
+        dailyFan.club_id,
+        dailyFan.member_id,
+        dailyFan.member_name,
+        dailyFan.fans,
+        dailyFan.created,
+        new Date(dailyFan.year, dailyFan.month, dailyFan.day).getTime()
+      );
+  });
 
   return circleResponse;
 };
 
 const clubHistoryFromDb = async (options: {
-  env: Env;
+  context: AppContext;
   year: number;
   month: number;
   yesterday: number;
   day: number;
+  circleId: number;
 }) => {
-  const { env, year, month, yesterday, day } = options;
+  const { context, year, month, yesterday, day, circleId } = options;
+  const { database } = context;
 
-  const statement = env.D1.prepare(
-    `SELECT id, year, month, day, rank, rank - LAG(rank, 1, 0) OVER(ORDER BY day) AS rank_diff, fans, fans - LAG(fans, 1, 0) OVER(ORDER BY day) AS fans_diff FROM club_history WHERE year = ? AND month = ? AND day IN (?, ?) ORDER BY day`
-  );
+  const result = database
+    .prepare<
+      ClubHistory,
+      [number, number, number, number, number]
+    >(`SELECT id, year, month, day, rank, rank - LAG(rank, 1, 0) OVER(ORDER BY day) AS rank_diff, fans, fans - LAG(fans, 1, 0) OVER(ORDER BY day) AS fans_diff FROM club_history WHERE year = ? AND month = ? AND day IN (?, ?) AND club_id = ? ORDER BY day`)
+    .all(year, month, yesterday, day, circleId);
 
-  const result = await statement.bind(year, month, yesterday, day).all<ClubHistory>();
-
-  if (result.success) {
-    if (result.results[1]) return result.results[1];
+  if (result) {
+    if (result[1]) return result[1];
     return undefined;
   }
 
   throw new Error(`Unable to fetch club history!`);
 };
 
-const dailyFansFromDb = async (options: { env: Env; year: number; month: number; yesterday: number; day: number }) => {
-  const { env, year, month, yesterday, day } = options;
-  const statement = env.D1.prepare(
-    `SELECT id, year, month, day, member_id, member_name, fans, fans - LAG(fans, 1, 0) OVER(ORDER BY member_name) AS fans_diff FROM daily_fan WHERE year = ? AND month = ? AND day IN (?, ?) ORDER BY member_name`
-  );
+const dailyFansFromDb = async (options: {
+  context: AppContext;
+  year: number;
+  month: number;
+  yesterday: number;
+  day: number;
+  circleId: number;
+}) => {
+  const { context, year, month, yesterday, day, circleId } = options;
+  const { database } = context;
 
-  const result = await statement.bind(year, month, yesterday, day).all<DailyFan>();
+  const result = database
+    .prepare<
+      DailyFan,
+      [number, number, number, number, number]
+    >(`SELECT id, year, month, day, club_id, member_id, member_name, fans, fans - LAG(fans, 1, 0) OVER(ORDER BY member_name) AS fans_diff FROM daily_fan WHERE year = ? AND month = ? AND day IN (?, ?) AND club_id = ? ORDER BY member_name`)
+    .all(year, month, yesterday, day, circleId);
 
-  if (result.success) {
-    return result.results;
+  if (result) {
+    return result;
   }
 
   return [];
 };
 
-export const dailyFan = async (options: { env: Env }) => {
-  const { env } = options;
+export const beginDailyFan = async (options: { context: AppContext }) => {
+  if (!process.env.CAFE_BREW) return;
 
-  if (!env.DISCORD_TOKEN) return;
-  if (!env.DISCORD_DAILY_TEXT_CHANNEL) return;
+  const brews = process.env.CAFE_BREW.split(';');
+  const { context } = options;
 
-  const webhookIdKv = await env.KV.get(BOGUSUME_DAILY_WEBHOOK_ID);
-  const webhookTokenKv = await env.KV.get(BOGUSUME_DAILY_WEBHOOK_TOKEN);
-  const lastMessageId = await env.KV.get(BOGUSUME_DAILY_LAST_MESSAGE_ID);
+  for (const brew of brews) {
+    const [guildId, textChannelId, circleId] = brew.split(':');
 
-  let webhookId = webhookIdKv ?? '';
-  let webhookToken = webhookTokenKv ?? '';
+    if (!guildId) break;
+    if (!textChannelId) break;
+    if (!circleId) break;
 
-  if (isBlank(webhookId) || isBlank(webhookToken)) {
-    console.log(`ℹ️  No webhook found, attemping to create webhook...`);
-    const webhook = await webhookCreate({
-      env,
-      textChannelId: env.DISCORD_DAILY_TEXT_CHANNEL
-    });
-
-    if (webhook) {
-      const [id, token] = webhook;
-
-      await env.KV.put(BOGUSUME_DAILY_WEBHOOK_ID, id);
-      await env.KV.put(BOGUSUME_DAILY_WEBHOOK_TOKEN, token);
-
-      console.log(`✅ Created webhook in ${env.DISCORD_DAILY_TEXT_CHANNEL} with id ${id}`);
-
-      webhookId = id;
-      webhookToken = token;
-    } else {
-      return;
-    }
+    await dailyFan({ context, guildId, textChannelId, circleId: parseInt(circleId) });
   }
+};
 
-  console.log(`✅ Using webhook id ${webhookId}`);
+export const dailyFan = async (options: {
+  context: AppContext;
+  guildId: string;
+  textChannelId: string;
+  circleId: number;
+}) => {
+  const { context, guildId, textChannelId, circleId } = options;
+  const { database, client } = context;
+
+  if (!process.env.CAFE_BREW) return;
+
+  const logger = getLogger(['cafe', 'daily-fan']);
+
+  logger.info({ message: 'Fetching daily fan count', circleId, guildId, textChannelId });
 
   // Perform fan check
-  const circleResponse = await fetchFromUmaMoe({ env });
+  const circleResponse = await fetchFromUmaMoe({ context, circleId });
+  const { circle } = circleResponse;
 
-  const today = new Date(circleResponse.circle.last_updated);
-  const yesterday = new Date(circleResponse.circle.yesterday_updated);
+  const today = new Date(circle.last_updated);
+  const yesterday = new Date(circle.yesterday_updated);
 
   // Perform sanity yesterday check
   if (yesterday.getUTCDate() === today.getUTCDate()) {
     yesterday.setUTCDate(today.getUTCDate() - 1);
   }
 
-  console.log(`✅ Fetched data from uma.moe`);
+  logger.info({ message: 'Fetched data from uma.moe', circleId, guildId, textChannelId });
 
   // Perform db calculations
+
+  logger.debug({ message: 'Fetching daily fans from db...', circleId, guildId, textChannelId });
+
   const dailyFans: DailyFan[] = await dailyFansFromDb({
-    env,
+    context,
     year: today.getUTCFullYear(),
     month: today.getUTCMonth(),
     yesterday: yesterday.getUTCDate(),
-    day: today.getUTCDate()
+    day: today.getUTCDate(),
+    circleId: circle.circle_id
   });
 
+  logger.debug({ message: 'Fetching club history from db...', circleId, guildId, textChannelId });
+
   const clubHistory = await clubHistoryFromDb({
-    env,
+    context,
     year: today.getUTCFullYear(),
     month: today.getUTCMonth(),
     yesterday: yesterday.getUTCDate(),
-    day: today.getUTCDate()
+    day: today.getUTCDate(),
+    circleId: circle.circle_id
   });
+
+  const club = database.query(`SELECT id, name, leader FROM club WHERE id = ?`).get(circleId) as {
+    id: number;
+    name: string;
+    leader: string;
+  };
 
   // Send a message
   const components: APIMessageTopLevelComponent[] = dailyFanComponents({
     today,
     yesterday,
+    circleId: club.id,
+    circleName: club.name,
     dailyFans: dailyFans
       .filter((dailyFan) => dailyFan.day === today.getUTCDate())
       .filter((dailyFan) => dailyFan.fans !== dailyFan.fans_diff)
@@ -217,25 +258,41 @@ export const dailyFan = async (options: { env: Env }) => {
     clubHistory
   });
 
-  const message = await webhookSendMessage({
-    env,
-    webhookId,
-    webhookToken,
-    body: {
-      flags: MessageFlags.IsComponentsV2,
-      components
+  const guild = await client.guilds.fetch(guildId);
+  const channel = await guild.channels.fetch(textChannelId);
+
+  // 3. Check if it's a text-based channel and send
+  if (channel && channel.isTextBased()) {
+    const message = await channel.send({
+      components,
+      flags: MessageFlags.IsComponentsV2
+    });
+
+    logger.debug({ message: 'Message sent', circleId, guildId, textChannelId });
+
+    logger.debug({ message: 'Fetching old message id', circleId, guildId, textChannelId });
+
+    // Fetch old message id
+    const discordMessage = database
+      .query<{ message_id: string }, string>(`SELECT message_id FROM discord_message WHERE discord_guild_id = ?`)
+      .get(guildId);
+
+    if (discordMessage) {
+      logger.debug({ message: 'Deleting message', messageId: discordMessage.message_id });
+      await channel.messages.delete(discordMessage.message_id);
     }
-  });
 
-  // Store new message id
-  await env.KV.put(BOGUSUME_DAILY_LAST_MESSAGE_ID, message.id);
+    logger.debug({ message: 'Storing message id', circleId, guildId, textChannelId });
 
-  // Perform deletion of previous message
-  if (lastMessageId) {
-    await webhookDeleteMessage({ env, webhookId, webhookToken, messageId: lastMessageId });
+    // Store new message id
+    database
+      .prepare(
+        `INSERT INTO discord_message (discord_guild_id, discord_text_channel_id, message_id) VALUES (?, ?, ?) ON CONFLICT(discord_guild_id) DO UPDATE SET message_id = excluded.message_id`
+      )
+      .run(guildId, textChannelId, message.id);
+
+    logger.debug({ message: 'Message sent', circleId, guildId, textChannelId });
+  } else {
+    logger.error('The provided Channel ID is not a text channel.');
   }
-
-  console.log(`✅ Sent message via webhook!`);
-
-  console.log(`✅ Operation succeeded!`);
 };

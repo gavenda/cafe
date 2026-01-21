@@ -1,15 +1,17 @@
 {
   "name": "cafe",
+  "description": "Drink coffee and serve them fans.",
   "module": "index.ts",
   "type": "module",
   "private": true,
-  "version": "1.0.0",
-  "author": "Gavenda <gavenda@disroot.org>",
+  "version": "2.0.0",
+  "author": "Enda <enda@gavenda.dev> (https://gavenda.dev/)",
   "license": "MIT",
   "scripts": {
-    "deploy": "wrangler deploy",
-    "start": "wrangler dev --test-scheduled",
-    "cf-typegen": "wrangler types",
+    "start": "bun .",
+    "watch": "bun --watch .",
+    "register": "bun ./src/register.ts",
+    "clear": "bun ./src/clear.ts",
     "format": "prettier --write src",
     "type-check": "tsc"
   },
@@ -24,8 +26,11 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "discord-api-types": "^0.38.37",
-    "discord-interactions": "^4.4.0",
-    "discord-snowflake": "^2.0.0"
+    "@logtape/file": "^2.0.1",
+    "@logtape/logtape": "^2.0.1",
+    "cronbake": "^0.4.0",
+    "discord.js": "^14.25.1",
+    "i18next": "^25.8.0",
+    "p-debounce": "^5.1.0"
   }
 }

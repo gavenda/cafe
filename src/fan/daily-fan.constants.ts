@@ -5,5 +5,5 @@ export const BOGUSUME_WEEKLY_WEBHOOK_ID = `BOGUSUME_WEEKLY_WEBHOOK_ID`;
 export const BOGUSUME_WEEKLY_WEBHOOK_TOKEN = `BOGUSUME_WEEKLY_WEBHOOK_TOKEN`;
 export const BOGUSUME_WEEKLY_LAST_MESSAGE_ID = `BOGUSUME_WEEKLY_LAST_MESSAGE_ID`;
 
-export const UMA_MOE_CLUB_API_URL = `https://uma.moe/api/v4/circles?circle_id=499459372`;
-export const UMA_MOE_CLUB_URL = `https://uma.moe/circles/499459372`;
+export const UMA_MOE_CLUB_API_URL = `https://uma.moe/api/v4/circles?circle_id=`;
+export const UMA_MOE_CLUB_URL = `https://uma.moe/circles/`;

@@ -1,24 +1,29 @@
-import { RouteBases, Routes } from 'discord-api-types/v10';
-import { commandList } from './command.list';
+import { REST, Routes } from 'discord.js';
+import { chatInputCommands } from './commands/chat-input';
+import { getLogger } from '@logtape/logtape';
 
-const registerCommands = async () => {
-  if (!process.env.DISCORD_TOKEN) {
-    throw new Error('No token passed');
-  }
-  if (!process.env.DISCORD_APPLICATION_ID) {
-    throw new Error('No application id passed');
-  }
+if (!process.env.TOKEN) {
+  throw new Error('TOKEN is required.');
+}
+if (!process.env.CLIENT_ID) {
+  throw new Error('CLIENT_ID is required.');
+}
 
-  await fetch(RouteBases.api + Routes.applicationCommands(process.env.DISCORD_APPLICATION_ID), {
-    method: 'PUT',
-    headers: {
-      'Content-Type': `application/json`,
-      'Authorization': `Bot ${process.env.DISCORD_TOKEN}`
-    },
-    body: JSON.stringify(commandList)
-  });
+const logger = getLogger(['cafe', 'register']);
+const rest = new REST().setToken(process.env.TOKEN);
 
-  console.info(`✅ Refreshed ${commandList.length} commands`);
-};
+try {
+  const clientId = process.env.CLIENT_ID;
 
-await registerCommands();
+  const commandList = chatInputCommands.map((command) => command.data);
+
+  const fullCommandList = [...commandList];
+
+  logger.info({ message: `Started refreshing ${commandList.length} application (/) commands.` });
+
+  await rest.put(Routes.applicationCommands(clientId), { body: fullCommandList });
+
+  logger.info({ message: `Successfully reloaded application (/) commands.` });
+} catch (error) {
+  logger.error({ error });
+}
