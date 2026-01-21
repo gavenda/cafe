@@ -16,7 +16,7 @@ export const agentPrompt = async (promptOpts: {
   if (!process.env.N8N_AGENT_WEBHOOK) return;
   if (!process.env.N8N_AGENT_WEBHOOK_SECRET) return;
 
-  const { message, prompt, context } = promptOpts;
+  const { message, prompt } = promptOpts;
 
   if (!message.guildId) return;
 

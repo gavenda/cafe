@@ -7,7 +7,7 @@ const logger = getLogger(['cafe', 'event:ready']);
 export const readyEvent: AppEvent<Events.ClientReady> = {
   event: Events.ClientReady,
   once: true,
-  execute: async (context, client) => {
+  execute: async (_, client) => {
     logger.info({ message: `Ready! Logged in`, user: client.user.tag });
   }
 };

@@ -16,7 +16,7 @@ export const dailyFanComponents = (options: {
   dailyFans: DailyFan[];
   clubHistory: ClubHistory | undefined;
 }): APIMessageTopLevelComponent[] => {
-  const { today, yesterday, circleId, circleName, dailyFans, clubHistory } = options;
+  const { today, circleId, circleName, dailyFans, clubHistory } = options;
 
   const dailyFanStr = [];
   const fansFormat = new Intl.NumberFormat('en-US', { notation: 'compact' });

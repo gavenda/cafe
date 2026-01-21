@@ -3,5 +3,6 @@ declare namespace NodeJS {
     TOKEN: string;
     CLIENT_ID: string;
     CAFE_BREW: string;
+    SQLITE_FILE: string;
   }
 }

@@ -14,7 +14,5 @@ export const history: AppChatInputCommand = {
         .setRequired(true)
     )
     .toJSON(),
-  execute: async (context, interaction) => {
-    const { client } = context;
-  }
+  execute: async (_context, _) => {}
 };

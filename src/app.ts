@@ -10,7 +10,6 @@ import { events } from './events';
 import { beginDailyFan } from './fan/daily-fan';
 import en from './locales/en.json';
 
-const DB_FILE_PATH = './cafe.sqlite';
 const SCHEMA_PATH = './schema.sql';
 
 export const main = async () => {
@@ -20,10 +19,13 @@ export const main = async () => {
   if (!process.env.CLIENT_ID) {
     throw new Error('CLIENT_ID is required.');
   }
+  if (!process.env.SQLITE_FILE) {
+    throw new Error('SQLITE_FILE is required.');
+  }
 
   const file = Bun.file(SCHEMA_PATH);
   const schema = await file.text();
-  const database = new Database(DB_FILE_PATH);
+  const database = new Database(process.env.SQLITE_FILE);
   const baker = Baker.create();
   // Create schema
   database.run(schema);
