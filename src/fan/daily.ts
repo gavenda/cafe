@@ -1,20 +1,22 @@
 import {
-  APIComponentInMessageActionRow,
-  APIMessageTopLevelComponent,
+  type APIComponentInMessageActionRow,
+  type APIMessageTopLevelComponent,
   ButtonStyle,
   ComponentType
 } from 'discord-api-types/v10';
-import { ClubHistory } from './club-history';
-import { DailyFan } from './daily-fan';
+import type { ClubHistory } from './club-history';
+import type { DailyFan } from './daily-fan';
 import { UMA_MOE_CLUB_URL } from './daily-fan.constants';
 
 export const dailyFanComponents = (options: {
   today: Date;
   yesterday: Date;
+  circleName: string;
+  circleId: number;
   dailyFans: DailyFan[];
   clubHistory: ClubHistory | undefined;
 }): APIMessageTopLevelComponent[] => {
-  const { today, yesterday, dailyFans, clubHistory } = options;
+  const { today, yesterday, circleId, circleName, dailyFans, clubHistory } = options;
 
   const dailyFanStr = [];
   const fansFormat = new Intl.NumberFormat('en-US', { notation: 'compact' });
@@ -28,7 +30,7 @@ export const dailyFanComponents = (options: {
   }
 
   const noTimeToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const noTimeYesterday = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
+  // const noTimeYesterday = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
 
   let clubHistoryComponents: APIComponentInMessageActionRow[] = [];
 
@@ -89,18 +91,18 @@ export const dailyFanComponents = (options: {
           components: [
             {
               type: ComponentType.TextDisplay,
-              content: `## Bogusume E Daily Fan Count`
+              content: `## ${circleName}`
             },
             {
               type: ComponentType.TextDisplay,
-              content: `-# Period of <t:${Math.floor(noTimeYesterday.getTime() / 1000)}:R> - <t:${Math.floor(noTimeToday.getTime() / 1000)}:R>`
+              content: `-# As of <t:${Math.floor(noTimeToday.getTime() / 1000)}:R>`
             }
           ],
           accessory: {
             label: 'View Chart',
             type: ComponentType.Button,
             style: ButtonStyle.Link,
-            url: UMA_MOE_CLUB_URL
+            url: UMA_MOE_CLUB_URL + circleId
           }
         },
         {

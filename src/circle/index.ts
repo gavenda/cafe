@@ -1,5 +1,5 @@
-import { Circle } from './circle';
-import { Member } from './member';
+import type { Circle } from './circle';
+import type { Member } from './member';
 
 export interface CircleResponse {
   circle: Circle;
