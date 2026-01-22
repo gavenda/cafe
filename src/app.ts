@@ -1,5 +1,5 @@
 import { getFileSink } from '@logtape/file';
-import { ansiColorFormatter, configure, getConsoleSink, getLogger } from '@logtape/logtape';
+import { ansiColorFormatter, configure, getConsoleSink, getLogger, withFilter } from '@logtape/logtape';
 import { Database } from 'bun:sqlite';
 import Baker from 'cronbake';
 import { ActivityType, Client, Events, GatewayIntentBits } from 'discord.js';
@@ -33,8 +33,8 @@ export const main = async () => {
   // Configure logging
   await configure({
     sinks: {
-      console: getConsoleSink({ nonBlocking: true, formatter: ansiColorFormatter }),
-      file: getFileSink('logs/cafe.log', {
+      console: withFilter(getConsoleSink({ nonBlocking: true, formatter: ansiColorFormatter }), 'info'),
+      file: getFileSink('data/logs/cafe.log', {
         lazy: true,
         bufferSize: 8192,
         flushInterval: 5000,
@@ -43,7 +43,7 @@ export const main = async () => {
     },
     loggers: [
       { category: ['logtape', 'meta'], sinks: ['file'] },
-      { category: 'cafe', lowestLevel: 'debug', sinks: ['console', 'file'] }
+      { category: ['cafe'], lowestLevel: 'debug', sinks: ['console', 'file'] }
     ],
     contextLocalStorage: new AsyncLocalStorage()
   });
