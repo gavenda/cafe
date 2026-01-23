@@ -33,7 +33,7 @@ export const messageCreateEvent: AppEvent<Events.MessageCreate> = {
     logger.debug({ message: `Received webhook response`, prompt });
 
     await message.reply({
-      content: prompt.message
+      content: prompt.message.replaceAll('\\n', '\n')
     });
   }
 };
