@@ -42,13 +42,7 @@ export const agentPrompt = async (options: {
 
   const body = {
     message: prompt,
-    dailyFans: dailyFans.map((d) => {
-      return {
-        name: d.member_name,
-        fans: d.fans,
-        timestamp: d.unix_date
-      };
-    })
+    dailyFans: dailyFans.map((d) => `${d.member_name}|${d.fans}|${d.unix_date}\n`)
   };
 
   const headers = {
