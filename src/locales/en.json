@@ -1,6 +1,8 @@
 {
   "translation": {
-    "reply": {},
+    "reply": {
+      "error_command_execution": "Cafe made a mistake in brewing coffee."
+    },
     "placeholder": {},
     "about_embed": {
       "title": "# Who is Manhattan Cafe?",

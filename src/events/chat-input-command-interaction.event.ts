@@ -5,7 +5,7 @@ import type { AppEvent } from './event';
 import { redis } from 'bun';
 import { getLogger } from '@logtape/logtape';
 
-const logger = getLogger(['vivy', 'event:chat-input-command']);
+const logger = getLogger(['cafe', 'event:chat-input-command']);
 
 export const chatInputCommandInteraction: AppEvent<Events.InteractionCreate> = {
   event: Events.InteractionCreate,
@@ -31,11 +31,6 @@ export const chatInputCommandInteraction: AppEvent<Events.InteractionCreate> = {
 
     try {
       await chatInputCommand.execute(context, interaction);
-      // Update player after every command
-      if (interaction.guildId) {
-        const pageKey = `player:page:${interaction.guildId}`;
-        await redis.set(pageKey, '0');
-      }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument

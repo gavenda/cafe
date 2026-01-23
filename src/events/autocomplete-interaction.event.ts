@@ -3,7 +3,7 @@ import { Events } from 'discord.js';
 import type { AppEvent } from './event';
 import { getLogger } from '@logtape/logtape';
 
-const logger = getLogger(['vivy', 'event:autocomplete']);
+const logger = getLogger(['cafe', 'event:autocomplete']);
 
 export const autocompleteInteraction: AppEvent<Events.InteractionCreate> = {
   event: Events.InteractionCreate,
