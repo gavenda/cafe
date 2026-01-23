@@ -8,28 +8,56 @@ const logger = getLogger(['cafe', 'agent']);
 /**
  * Send a prompt to the gpt agent webhook.
  */
-export const agentPrompt = async (promptOpts: {
+export const agentPrompt = async (options: {
   context: AppContext;
   message: OmitPartialGroupDMChannel<Message<boolean>>;
   prompt: string;
 }) => {
   if (!process.env.N8N_AGENT_WEBHOOK) return;
   if (!process.env.N8N_AGENT_WEBHOOK_SECRET) return;
+  if (!process.env.CAFE_BREW) return;
 
-  const { message, prompt } = promptOpts;
+  const { message, prompt } = options;
 
   if (!message.guildId) return;
 
+  const clubId = findClubId(process.env.CAFE_BREW, message.guildId);
+
+  if (!clubId) return;
+
+  const { database } = options.context;
+
+  logger.debug({ message: 'Fetching fan history', clubId });
+
+  // Return the entire thing
+  const dailyFansQuery = `SELECT unix_date, member_name, fans FROM daily_fan WHERE club_id = ? ORDER BY member_name`;
+  const dailyFans = database
+    .query<{ unix_date: number; member_name: string; fans: number }, number>(dailyFansQuery)
+    .all(parseInt(clubId));
+
+  logger.debug({ message: 'Fetching club information', clubId });
+
+  const clubQuery = `SELECT name, leader FROM club WHERE id = ?`;
+  const club = database.query<{ name: string; leader: string }, number>(clubQuery).get(parseInt(clubId));
+
   const body = {
-    message: prompt
+    message: prompt,
+    dailyFans: dailyFans.map((d) => {
+      return {
+        name: d.member_name,
+        fans: d.fans,
+        timestamp: d.unix_date
+      };
+    })
   };
 
   const headers = {
     'Content-Type': `application/json`,
-    'Uma-Club-Name': '',
+    'Uma-Club-Name': club?.name ?? '',
+    'Uma-Club-Leader': club?.leader ?? '',
     'Discord-User-Id': message.author.id,
     'Discord-User-Name': message.author.username,
-    'Authorization': `Bearer ${process.env.N8N_AGENT_WEBHOOK_SECRET}`
+    'Coffee': process.env.N8N_AGENT_WEBHOOK_SECRET
   };
 
   logger.debug({ message: `Sending webhook to n8n`, headers, body });
@@ -41,10 +69,32 @@ export const agentPrompt = async (promptOpts: {
   });
 
   const json = await response.json();
+
+  const errorObj = json as { error: string };
+
+  if (errorObj.error) {
+    return { type: 'message', message: errorObj.error };
+  }
+
   const result = json as {
     output: N8NWebhookResponse;
   };
+
+  logger.debug(result);
+
   const { output } = result;
 
   return output;
+};
+
+const findClubId = (brew: string, guildId: string) => {
+  const coffees = brew.split(';');
+
+  for (const coffee of coffees) {
+    const recipe = coffee.split(':');
+
+    if (recipe[0] === guildId) {
+      return recipe[2];
+    }
+  }
 };

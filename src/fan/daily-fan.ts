@@ -169,11 +169,11 @@ const dailyFansFromDb = async (options: {
   return [];
 };
 
-export const beginDailyFan = async (options: { context: AppContext }) => {
+export const beginDailyFan = async (options: { context: AppContext; noMessage?: boolean }) => {
   if (!process.env.CAFE_BREW) return;
 
   const brews = process.env.CAFE_BREW.split(';');
-  const { context } = options;
+  const { context, noMessage } = options;
 
   for (const brew of brews) {
     const [guildId, textChannelId, circleId] = brew.split(':');
@@ -182,14 +182,18 @@ export const beginDailyFan = async (options: { context: AppContext }) => {
     if (!textChannelId) break;
     if (!circleId) break;
 
-    await dailyFan({ context, guildId, textChannelId, circleId: parseInt(circleId) });
+    if (noMessage) {
+      await dailyFan({ context, guildId: null, textChannelId: null, circleId: parseInt(circleId) });
+    } else {
+      await dailyFan({ context, guildId, textChannelId, circleId: parseInt(circleId) });
+    }
   }
 };
 
 export const dailyFan = async (options: {
   context: AppContext;
-  guildId: string;
-  textChannelId: string;
+  guildId: string | null;
+  textChannelId: string | null;
   circleId: number;
 }) => {
   const { context, guildId, textChannelId, circleId } = options;
@@ -257,6 +261,9 @@ export const dailyFan = async (options: {
       .sort((a, b) => b.fans_diff - a.fans_diff),
     clubHistory
   });
+
+  if (!guildId) return;
+  if (!textChannelId) return;
 
   const guild = await client.guilds.fetch(guildId);
   const channel = await guild.channels.fetch(textChannelId);

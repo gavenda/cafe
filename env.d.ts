@@ -4,5 +4,7 @@ declare namespace NodeJS {
     CLIENT_ID: string;
     CAFE_BREW: string;
     SQLITE_FILE: string;
+    N8N_AGENT_WEBHOOK: string;
+    N8N_AGENT_WEBHOOK_SECRET: string;
   }
 }
