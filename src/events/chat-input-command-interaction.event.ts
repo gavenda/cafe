@@ -2,7 +2,6 @@ import { chatInputCommands } from 'cafe/commands/chat-input';
 import { Events, MessageFlags } from 'discord.js';
 import i18next from 'i18next';
 import type { AppEvent } from './event';
-import { redis } from 'bun';
 import { getLogger } from '@logtape/logtape';
 
 const logger = getLogger(['cafe', 'event:chat-input-command']);

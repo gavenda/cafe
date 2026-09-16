@@ -1,7 +1,6 @@
 import { Events } from 'discord.js';
 import type { AppEvent } from './event';
 import { getLogger } from '@logtape/logtape';
-import { agentPrompt } from 'cafe/agent';
 
 const logger = getLogger(['cafe', 'event:message-create']);
 
@@ -21,19 +20,5 @@ export const messageCreateEvent: AppEvent<Events.MessageCreate> = {
     if (!message.mentions.users.has(context.applicationId)) return;
     if (!message.member) return;
     if (!message.guildId) return;
-
-    const prompt = await agentPrompt({
-      prompt: message.cleanContent,
-      message,
-      context
-    });
-
-    if (!prompt) return;
-
-    logger.debug({ message: `Received webhook response`, prompt });
-
-    await message.reply({
-      content: prompt.message.replaceAll('\\n', '\n')
-    });
   }
 };

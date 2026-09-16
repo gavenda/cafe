@@ -24,7 +24,9 @@ const fetchFromUmaMoe = async (options: { context: AppContext; circleId: number 
   const logger = getLogger(['cafe', 'daily-fan']);
   const { context, circleId } = options;
   const { database } = context;
-  const circleResult = await fetch(UMA_MOE_CLUB_API_URL + circleId);
+  const circleResult = await fetch(UMA_MOE_CLUB_API_URL + circleId, {
+    headers: { 'x-api-key': process.env.UMA_MOE_API_KEY }
+  });
   const circleResponseJson = await circleResult.json();
   const circleResponse = circleResponseJson as CircleResponse;
   const { circle } = circleResponse;

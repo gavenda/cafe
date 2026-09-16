@@ -19,13 +19,13 @@ export const main = async () => {
   if (!process.env.CLIENT_ID) {
     throw new Error('CLIENT_ID is required.');
   }
-  if (!process.env.SQLITE_FILE) {
-    throw new Error('SQLITE_FILE is required.');
+  if (!process.env.UMA_MOE_API_KEY) {
+    throw new Error('UMA_MOE_API_KEY is required.');
   }
 
   const file = Bun.file(SCHEMA_PATH);
   const schema = await file.text();
-  const database = new Database(process.env.SQLITE_FILE);
+  const database = new Database(process.env.SQLITE_FILE ?? 'data/cafe.sqlite');
   const baker = Baker.create();
   // Create schema
   database.run(schema);
