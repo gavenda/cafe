@@ -1,0 +1,18 @@
+[Unit]
+Description=cafe Discord bot (fan leaderboard)
+Requires=cafe-redis.service
+After=cafe-redis.service
+
+[Container]
+ContainerName=cafe
+Pod=cafe.pod
+Image=docker.io/gavenda/cafe:latest
+AutoUpdate=registry
+Volume=cafe-logs.volume:/usr/src/cafe/data/logs
+# TOKEN, CLIENT_ID and UMA_MOE_API_KEY. See cafe.env.example.
+EnvironmentFile=%h/.config/cafe/cafe.env
+Environment=REDIS_URL=redis://localhost:6379
+
+[Service]
+Restart=always
+TimeoutStartSec=300

@@ -1,8 +1,8 @@
-import { Client } from 'discord.js';
-import { Database } from 'bun:sqlite';
+import type { RedisClient } from 'bun';
+import type { Client } from 'discord.js';
 
 export interface AppContext {
   applicationId: string;
   client: Client;
-  database: Database;
+  redis: RedisClient;
 }

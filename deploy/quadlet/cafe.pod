@@ -1,0 +1,10 @@
+[Unit]
+Description=cafe Discord bot pod (bot + Redis)
+
+[Pod]
+PodName=cafe
+# Both containers share this pod's network, so the bot reaches Redis on localhost.
+# No ports are published: Redis is only reachable from inside the pod.
+
+[Install]
+WantedBy=default.target

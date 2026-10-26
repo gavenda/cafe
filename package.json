@@ -4,7 +4,7 @@
   "module": "index.ts",
   "type": "module",
   "private": true,
-  "version": "3.2.5",
+  "version": "4.0.0",
   "author": "Enda <enda@gavenda.dev> (https://gavenda.dev/)",
   "license": "MIT",
   "scripts": {
@@ -12,25 +12,19 @@
     "watch": "bun --watch .",
     "register": "bun ./src/register.ts",
     "clear": "bun ./src/clear.ts",
-    "format": "prettier --write src",
-    "type-check": "tsc"
+    "lint": "bunx bun@canary lint"
   },
   "devDependencies": {
-    "@types/bun": "^1.4.2",
-    "@types/uuid": "^11.0.0",
-    "eslint": "^9.39.2",
-    "prettier": "^3.7.4",
-    "typescript-eslint": "^8.49.0"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
+    "@types/bun": "^1.4.4",
+    "typescript": "^7.0.2"
   },
   "dependencies": {
-    "@logtape/file": "^2.0.1",
-    "@logtape/logtape": "^2.0.1",
-    "cronbake": "^0.4.0",
-    "discord.js": "^14.25.1",
-    "i18next": "^25.8.0",
-    "p-debounce": "^5.1.0"
+    "@logtape/file": "^2.2.8",
+    "@logtape/logtape": "^2.3.5",
+    "discord.js": "^14.27.0",
+    "i18next": "^25.10.10"
+  },
+  "engines": {
+    "bun": ">=1.4.0"
   }
 }

@@ -1,0 +1,20 @@
+[fmt]
+printWidth = 120
+singleQuote = true
+trailingComma = "none"
+quoteProps = "consistent"
+endOfLine = "lf"
+
+[lint]
+# typescript-eslint's recommended type-aware rules (no-floating-promises, no-unsafe-*, ...).
+typeAware = true
+
+[lint.rules]
+"@typescript-eslint/no-unsafe-argument" = "warn"
+"@typescript-eslint/no-explicit-any" = "warn"
+"@typescript-eslint/no-unsafe-member-access" = "warn"
+"@typescript-eslint/no-unused-vars" = "off"
+"@typescript-eslint/no-misused-promises" = "off"
+"@typescript-eslint/require-await" = "off"
+"@typescript-eslint/no-unsafe-return" = "off"
+"@typescript-eslint/prefer-promise-reject-errors" = "off"

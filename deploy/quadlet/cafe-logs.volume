@@ -1,0 +1,5 @@
+[Unit]
+Description=Log files for cafe
+
+[Volume]
+VolumeName=cafe-logs

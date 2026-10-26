@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     environment: production
-    name: Typecheck and Register
+    name: Check and Register
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,57 +16,54 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         name: Set up bun
         with:
-          bun-version: 1.3.0
+          bun-version: 1.4.4
       - name: Install dependencies
         run: bun ci
-      - run: bun run lint
+      - run: bun fmt --check
+        name: Format
+      - run: bun check
+        name: Typecheck
+      # Runs canary Bun through the lint script until bun lint ships in a stable release.
+      # Non-blocking so a canary change can't hold up a release.
+      - run: bun lint
         name: Lint
         continue-on-error: true
-      - run: bun run type-check
-        name: Typecheck
       - run: |
           bun run register
         name: Register
         env:
           TOKEN: ${{ secrets.TOKEN }}
           CLIENT_ID: ${{ secrets.CLIENT_ID }}
-  docker:
-    name: Push to Docker
+  image:
+    name: Build and push image
     needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         name: Checkout
-      - name: Set up Docker metadata
+      - name: Compute image tags
         id: meta
-        uses: docker/metadata-action@v5
+        # v4.1.2 -> latest 4.1.2 4.1 4 sha-abc1234
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          major="${version%%.*}"
+          minor="${version#*.}"
+          minor="${major}.${minor%%.*}"
+          echo "tags=latest ${version} ${minor} ${major} sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+      - uses: redhat-actions/buildah-build@v2
+        id: build-image
+        name: Build image
         with:
-          # list of Docker images to use as base name for tags
-          images: |
-            gavenda/cafe
-          flavor: |
-            latest=true
-          tags: |
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            type=sha
-      - uses: docker/setup-buildx-action@v3
-        name: Set up Docker Buildx
-      - uses: docker/login-action@v3
-        name: Login to DockerHub
+          image: gavenda/cafe
+          tags: ${{ steps.meta.outputs.tags }}
+          containerfiles: ./Containerfile
+          context: .
+          platforms: linux/amd64
+      - uses: redhat-actions/push-to-registry@v2
+        name: Push to Docker Hub
         with:
+          image: ${{ steps.build-image.outputs.image }}
+          tags: ${{ steps.build-image.outputs.tags }}
+          registry: docker.io
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - uses: docker/build-push-action@v5
-        name: Build and push
-        with:
-          file: ./Dockerfile
-          context: .
-          push: ${{ github.event_name != 'pull_request' }}
-          platforms: 'linux/amd64,linux/arm64'
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
