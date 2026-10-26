@@ -1,5 +1,5 @@
 import { today } from 'cafe/leaderboard/day';
-import { publishLeaderboard } from 'cafe/leaderboard/publish';
+import { getLeaderboardChannelId, PERIODS, publishLeaderboard, setLeaderboardChannel } from 'cafe/leaderboard/publish';
 import { latestSnapshotDay, type Period } from 'cafe/leaderboard/standings';
 import { getGuildTrainers, MAX_WATCHED_TRAINERS, saveSnapshot } from 'cafe/leaderboard/trainers';
 import { keys } from 'cafe/redis';
@@ -23,13 +23,24 @@ const reply = (interaction: ChatInputCommandInteraction, content: string) =>
     ? interaction.editReply({ content })
     : interaction.reply({ content, flags: MessageFlags.Ephemeral });
 
+const PERIOD_CHOICES = [
+  { name: 'Daily', value: 'daily' },
+  { name: 'Weekly', value: 'weekly' }
+] as const;
+
 const setChannel = async (context: AppContext, interaction: ChatInputCommandInteraction, guildId: string) => {
-  const channel = interaction.options.getChannel('channel', true);
+  const period = interaction.options.getString('period', true) as Period;
+  const channel = interaction.options.getChannel('channel');
 
-  await context.redis.hset(keys.guild(guildId), { channel_id: channel.id });
-  await context.redis.sadd(keys.guilds(), guildId);
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+  await setLeaderboardChannel(context, guildId, period, channel?.id ?? null);
 
-  await reply(interaction, `Leaderboards will be posted in <#${channel.id}>.`);
+  await reply(
+    interaction,
+    channel
+      ? `The ${period} leaderboard now lives in <#${channel.id}> and updates in place.`
+      : `The ${period} leaderboard is off and its post was removed.`
+  );
 };
 
 const addTrainer = async (context: AppContext, interaction: ChatInputCommandInteraction, guildId: string) => {
@@ -85,7 +96,12 @@ const removeTrainer = async (context: AppContext, interaction: ChatInputCommandI
 
 const listTrainers = async (context: AppContext, interaction: ChatInputCommandInteraction, guildId: string) => {
   const trainers = await getGuildTrainers(context.redis, guildId);
-  const channelId = await context.redis.hget(keys.guild(guildId), 'channel_id');
+  const channels = await Promise.all(PERIODS.map((period) => getLeaderboardChannelId(context, guildId, period)));
+
+  const channelLines = PERIODS.map((period, index) => {
+    const channelId = channels[index];
+    return `**${period === 'daily' ? 'Daily' : 'Weekly'}:** ${channelId ? `<#${channelId}>` : 'off'}`;
+  });
 
   const lines = trainers.map((trainer) => {
     const fans = trainer.fans === null ? '?' : numberFormat.format(trainer.fans);
@@ -95,25 +111,36 @@ const listTrainers = async (context: AppContext, interaction: ChatInputCommandIn
   await reply(
     interaction,
     [
-      `**Channel:** ${channelId ? `<#${channelId}>` : 'not set, use `/leaderboard channel`'}`,
+      ...channelLines,
       `**Trainers (${trainers.length}/${MAX_WATCHED_TRAINERS}):**`,
       lines.length > 0 ? lines.join('\n') : 'None yet, use `/leaderboard add`.'
     ].join('\n')
   );
 };
 
-const postNow = async (context: AppContext, interaction: ChatInputCommandInteraction, guildId: string) => {
-  const period = (interaction.options.getString('period') ?? 'daily') as Period;
-  const channelId = await context.redis.hget(keys.guild(guildId), 'channel_id');
-
-  if (!channelId) {
-    await reply(interaction, 'Set a channel first with `/leaderboard channel`.');
-    return;
-  }
+const refresh = async (context: AppContext, interaction: ChatInputCommandInteraction, guildId: string) => {
+  const chosen = interaction.options.getString('period') as Period | null;
+  const periods = chosen ? [chosen] : PERIODS;
 
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-  await publishLeaderboard(context, guildId, period, await latestSnapshotDay(context.redis));
-  await reply(interaction, `Posted the ${period} leaderboard in <#${channelId}>.`);
+
+  const day = await latestSnapshotDay(context.redis);
+  const updated: string[] = [];
+
+  for (const period of periods) {
+    const channelId = await getLeaderboardChannelId(context, guildId, period);
+    if (!channelId) continue;
+
+    await publishLeaderboard(context, guildId, period, day);
+    updated.push(`${period} in <#${channelId}>`);
+  }
+
+  await reply(
+    interaction,
+    updated.length > 0
+      ? `Updated the ${updated.join(' and the ')}.`
+      : 'No leaderboard is on. Set a channel with `/leaderboard channel`.'
+  );
 };
 
 export const leaderboard: AppChatInputCommand = {
@@ -125,12 +152,16 @@ export const leaderboard: AppChatInputCommand = {
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addSubcommand((sub) => sub
       .setName('channel')
-      .setDescription('Set the channel the leaderboard is posted in.')
+      .setDescription('Choose where the daily or weekly leaderboard lives, or turn it off.')
+      .addStringOption((option) => option
+        .setName('period')
+        .setDescription('Which leaderboard to set.')
+        .addChoices(...PERIOD_CHOICES)
+        .setRequired(true))
       .addChannelOption((option) => option
         .setName('channel')
-        .setDescription('Text channel for the leaderboard.')
-        .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
-        .setRequired(true)))
+        .setDescription('Text channel for it. Leave empty to turn this leaderboard off.')
+        .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)))
     .addSubcommand((sub) => sub
       .setName('add')
       .setDescription('Add a trainer to the leaderboard.')
@@ -148,14 +179,14 @@ export const leaderboard: AppChatInputCommand = {
         .setRequired(true)))
     .addSubcommand((sub) => sub
       .setName('list')
-      .setDescription('Show the leaderboard channel and watched trainers.'))
+      .setDescription('Show the leaderboard channels and watched trainers.'))
     .addSubcommand((sub) => sub
-      .setName('post')
-      .setDescription('Post the leaderboard now.')
+      .setName('refresh')
+      .setDescription('Update the leaderboard posts now.')
       .addStringOption((option) => option
         .setName('period')
-        .setDescription('Which leaderboard to post.')
-        .addChoices({ name: 'Daily', value: 'daily' }, { name: 'Weekly', value: 'weekly' })))
+        .setDescription('Which leaderboard to update. Leave empty for both.')
+        .addChoices(...PERIOD_CHOICES)))
     .toJSON(),
   execute: async (context, interaction) => {
     const guildId = interaction.guildId;
@@ -174,8 +205,8 @@ export const leaderboard: AppChatInputCommand = {
         return removeTrainer(context, interaction, guildId);
       case 'list':
         return listTrainers(context, interaction, guildId);
-      case 'post':
-        return postNow(context, interaction, guildId);
+      case 'refresh':
+        return refresh(context, interaction, guildId);
     }
   },
   autocomplete: autocompleteTrainer

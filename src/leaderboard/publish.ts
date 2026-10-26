@@ -1,50 +1,118 @@
 import { getLogger } from '@logtape/logtape';
 import type { AppContext } from 'cafe/context';
 import { keys } from 'cafe/redis';
-import { MessageFlags } from 'discord.js';
+import { DiscordAPIError, MessageFlags, RESTJSONErrorCodes, type Snowflake } from 'discord.js';
 import { leaderboardComponents } from './components';
 import type { Day } from './day';
-import { computeStandings, type Period } from './standings';
+import { computeStandings, latestSnapshotDay, type Period } from './standings';
 
-/** Posts the guild's leaderboard to its configured channel, replacing the previous one. */
+export const PERIODS: Period[] = ['daily', 'weekly'];
+
+/** Guild settings fields for one leaderboard. Daily and weekly each have their own channel and post. */
+const fields = (period: Period) => ({
+  channel: `${period}_channel_id`,
+  message: `${period}_message_id`
+});
+
+/** Discord says the message or channel no longer exists. Checks the code, not the class, so it holds across copies of discord.js. */
+const isGone = (error: unknown) => {
+  const code = (error as Partial<DiscordAPIError> | null)?.code;
+  return code === RESTJSONErrorCodes.UnknownMessage || code === RESTJSONErrorCodes.UnknownChannel;
+};
+
+const fetchTextChannel = async (context: AppContext, channelId: Snowflake) => {
+  const channel = await context.client.channels.fetch(channelId).catch((error: unknown) => {
+    if (isGone(error)) return null;
+    throw error;
+  });
+  return channel?.isSendable() ? channel : null;
+};
+
+export const getLeaderboardChannelId = async (context: AppContext, guildId: string, period: Period) =>
+  context.redis.hget(keys.guild(guildId), fields(period).channel);
+
+/**
+ * Updates the guild's leaderboard post for the period. Each leaderboard is one message that is
+ * edited in place; a new one is sent only when there is none yet or someone deleted it.
+ */
 export const publishLeaderboard = async (context: AppContext, guildId: string, period: Period, day: Day) => {
   const logger = getLogger(['cafe', 'publish']);
-  const { client, redis } = context;
-  const messageField = `${period}_message_id`;
+  const { redis } = context;
+  const { channel: channelField, message: messageField } = fields(period);
 
   const settings = await redis.hgetall(keys.guild(guildId));
-  const channelId = settings['channel_id'];
+  const channelId = settings[channelField];
 
   if (!channelId) {
-    logger.info({ message: 'No leaderboard channel set, skipping', guildId, period });
+    logger.debug({ message: 'Leaderboard is off, skipping', guildId, period });
+    return;
+  }
+
+  const channel = await fetchTextChannel(context, channelId);
+
+  if (!channel) {
+    logger.error({ message: 'Leaderboard channel is missing or not a text channel', guildId, period, channelId });
     return;
   }
 
   const standings = await computeStandings(redis, guildId, period, day);
-  const channel = await client.channels.fetch(channelId);
+  const payload = { components: leaderboardComponents(standings), flags: MessageFlags.IsComponentsV2 } as const;
+  const messageId = settings[messageField];
 
-  if (!channel || !channel.isSendable()) {
-    logger.error({ message: 'Leaderboard channel is not a sendable text channel', guildId, channelId });
-    return;
+  if (messageId) {
+    try {
+      await channel.messages.edit(messageId, { components: payload.components });
+      logger.info({ message: 'Updated leaderboard', guildId, period, day, ranked: standings.ranked.length });
+      return;
+    } catch (error) {
+      if (!isGone(error)) throw error;
+      logger.warn({ message: 'Leaderboard post was deleted, posting a new one', guildId, period, messageId });
+    }
   }
 
-  const message = await channel.send({
-    components: leaderboardComponents(standings),
-    flags: MessageFlags.IsComponentsV2
-  });
+  const message = await channel.send(payload);
+  await redis.hset(keys.guild(guildId), { [messageField]: message.id });
 
-  const previousMessageId = settings[messageField];
+  logger.info({ message: 'Posted leaderboard', guildId, period, day, ranked: standings.ranked.length });
+};
 
-  if (previousMessageId && channel.isTextBased() && 'messages' in channel) {
-    // The old message may already be gone, or in a channel we can no longer see.
-    await channel.messages.delete(previousMessageId).catch((error: unknown) => {
-      logger.warn({ message: 'Unable to delete previous leaderboard', guildId, previousMessageId, error });
+/**
+ * Points a leaderboard at a channel, or turns it off with `null`. Moving it removes the old post
+ * so the leaderboard only ever lives in one place, then posts it in the new channel right away.
+ */
+export const setLeaderboardChannel = async (
+  context: AppContext,
+  guildId: string,
+  period: Period,
+  channelId: Snowflake | null
+) => {
+  const logger = getLogger(['cafe', 'publish']);
+  const { redis } = context;
+  const { channel: channelField, message: messageField } = fields(period);
+
+  const settings = await redis.hgetall(keys.guild(guildId));
+  const oldChannelId = settings[channelField];
+  const oldMessageId = settings[messageField];
+
+  if (oldChannelId === channelId) return;
+
+  if (oldChannelId && oldMessageId) {
+    const oldChannel = await fetchTextChannel(context, oldChannelId);
+    await oldChannel?.messages.delete(oldMessageId).catch((error: unknown) => {
+      if (!isGone(error)) logger.warn({ message: 'Unable to remove old leaderboard post', guildId, period, error });
     });
   }
 
-  await redis.hset(keys.guild(guildId), { [messageField]: message.id });
+  await redis.hdel(keys.guild(guildId), messageField);
 
-  logger.info({ message: 'Published leaderboard', guildId, period, day, ranked: standings.ranked.length });
+  if (!channelId) {
+    await redis.hdel(keys.guild(guildId), channelField);
+    return;
+  }
+
+  await redis.hset(keys.guild(guildId), { [channelField]: channelId });
+  await redis.sadd(keys.guilds(), guildId);
+  await publishLeaderboard(context, guildId, period, await latestSnapshotDay(redis));
 };
 
 export const publishAllLeaderboards = async (context: AppContext, period: Period, day: Day) => {

@@ -13,7 +13,8 @@ Bun is the only supported runtime. Prefer Bun built-ins (`Bun.cron`, `RedisClien
 
 ### Design notes
 
-- Servers set up the leaderboard with `/leaderboard channel|add|remove|list|post` (Manage Server permission).
+- Servers set up the leaderboard with `/leaderboard channel|add|remove|list|refresh` (Manage Server permission).
+- Daily and weekly leaderboards each have their own channel (which can be the same one) and are a single post that is edited in place. A new post is only sent if the old one was deleted. Moving a leaderboard removes its old post; leaving the channel empty turns it off.
 - Anyone can view `/standings` and `/history`.
 - `uma.moe` is the API that provides fan totals. Trainers are looked up through `/api/v4/rankings/alltime?query=<trainer id>`.
 - Every day at 17:00 UTC, cafe stores each watched trainer's lifetime fan total as a snapshot, then posts the leaderboard.
@@ -24,7 +25,7 @@ Bun is the only supported runtime. Prefer Bun built-ins (`Bun.cron`, `RedisClien
 | Key                                   | Type | Contents                                                 |
 | ------------------------------------- | ---- | -------------------------------------------------------- |
 | `cafe:guilds`                         | SET  | Guild ids that set up cafe                               |
-| `cafe:guild:{guildId}`                | HASH | `channel_id`, `daily_message_id`, `weekly_message_id`    |
+| `cafe:guild:{guildId}`                | HASH | `{daily,weekly}_channel_id`, `{daily,weekly}_message_id` |
 | `cafe:guild:{guildId}:trainers`       | SET  | Watched trainer ids                                      |
 | `cafe:trainer:{trainerId}`            | HASH | `name`, `circle_id`, `circle_name`, `fans`, `updated_at` |
 | `cafe:fans:{YYYY-MM-DD}`              | ZSET | Trainer id -> lifetime fans on that UTC day (45d TTL)    |
