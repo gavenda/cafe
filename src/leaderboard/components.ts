@@ -38,46 +38,41 @@ export const leaderboardComponents = (standings: Standings): APIMessageTopLevelC
 
   return [
     {
-      type: ComponentType.Container,
+      type: ComponentType.MediaGallery,
+      items: [{ media: { url: BANNER_URL } }]
+    },
+    {
+      type: ComponentType.TextDisplay,
+      content: `## ${TITLES[period]}\n-# <t:${dayToUnix(since)}:D> → <t:${dayToUnix(day)}:D>`
+    },
+    {
+      type: ComponentType.ActionRow,
       components: [
         {
-          type: ComponentType.MediaGallery,
-          items: [{ media: { url: BANNER_URL } }]
+          type: ComponentType.Button,
+          style: ButtonStyle.Secondary,
+          label: `👥 ${ranked.length + pending.length} trainers`,
+          disabled: true,
+          custom_id: 'cafe:trainers'
         },
         {
-          type: ComponentType.TextDisplay,
-          content: `## ${TITLES[period]}\n-# <t:${dayToUnix(since)}:D> → <t:${dayToUnix(day)}:D>`
+          type: ComponentType.Button,
+          style: ButtonStyle.Secondary,
+          label: `💕 +${compactFormat.format(totalGain)} fans`,
+          disabled: true,
+          custom_id: 'cafe:fans'
         },
         {
-          type: ComponentType.ActionRow,
-          components: [
-            {
-              type: ComponentType.Button,
-              style: ButtonStyle.Secondary,
-              label: `👥 ${ranked.length + pending.length} trainers`,
-              disabled: true,
-              custom_id: 'cafe:trainers'
-            },
-            {
-              type: ComponentType.Button,
-              style: ButtonStyle.Secondary,
-              label: `💕 +${compactFormat.format(totalGain)} fans`,
-              disabled: true,
-              custom_id: 'cafe:fans'
-            },
-            {
-              type: ComponentType.Button,
-              style: ButtonStyle.Link,
-              label: `🔥 Pokey's Umamusume Guide`,
-              url: GUIDE_URL
-            }
-          ]
-        },
-        {
-          type: ComponentType.TextDisplay,
-          content: body
+          type: ComponentType.Button,
+          style: ButtonStyle.Link,
+          label: `🔥 Pokey's Umamusume Guide`,
+          url: GUIDE_URL
         }
       ]
+    },
+    {
+      type: ComponentType.TextDisplay,
+      content: body
     }
   ];
 };
