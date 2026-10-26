@@ -1,3 +1,4 @@
+import { BANNER_URL, bannerAttachment } from 'cafe/banner';
 import { GUIDE_URL } from 'cafe/leaderboard/components';
 import { dayToUnix, shiftDay } from 'cafe/leaderboard/day';
 import { computeStandings, latestSnapshotDay } from 'cafe/leaderboard/standings';
@@ -78,7 +79,7 @@ export const history: AppChatInputCommand = {
         components: [
           {
             type: ComponentType.MediaGallery,
-            items: [{ media: { url: 'https://w.wallhaven.cc/full/rd/wallhaven-rdx5om.png' } }]
+            items: [{ media: { url: BANNER_URL } }]
           },
           {
             type: ComponentType.TextDisplay,
@@ -119,6 +120,7 @@ export const history: AppChatInputCommand = {
 
     await interaction.reply({
       components,
+      files: [bannerAttachment()],
       flags: MessageFlags.IsComponentsV2 | MessageFlags.SuppressNotifications
     });
   },

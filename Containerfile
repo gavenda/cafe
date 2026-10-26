@@ -13,6 +13,7 @@ FROM base AS release
 RUN mkdir -p data/logs
 COPY --from=install /tmp/cafe/node_modules node_modules
 COPY src ./src
+COPY assets ./assets
 COPY package.json tsconfig.json index.ts ./
 
 RUN chown -R bun:bun /usr/src/cafe/data

@@ -1,3 +1,4 @@
+import { bannerAttachment } from 'cafe/banner';
 import { leaderboardComponents } from 'cafe/leaderboard/components';
 import { computeStandings, latestSnapshotDay, type Period } from 'cafe/leaderboard/standings';
 import { InteractionContextType, MessageFlags, SlashCommandBuilder } from 'discord.js';
@@ -23,6 +24,7 @@ export const standings: AppChatInputCommand = {
 
     await interaction.reply({
       components: leaderboardComponents(result),
+      files: [bannerAttachment()],
       flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
     });
   }

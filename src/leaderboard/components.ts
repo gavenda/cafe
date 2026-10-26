@@ -1,14 +1,9 @@
+import { BANNER_URL } from 'cafe/banner';
 import { ButtonStyle, ComponentType, type APIMessageTopLevelComponent } from 'discord.js';
 import { dayToUnix } from './day';
 import type { Period, Standings } from './standings';
 
 export const GUIDE_URL = 'https://docs.google.com/spreadsheets/d/1kat8RUx0GQ-oMtYshruxzFsnQyoqbGT8';
-
-const BANNERS: Record<Period, string> = {
-  daily: 'https://images2.alphacoders.com/118/thumb-1920-1184687.jpg',
-  weekly:
-    'https://w0.peakpx.com/wallpaper/221/943/HD-wallpaper-anime-long-hair-uma-musume-pretty-derby-manhattan-cafe.jpg'
-};
 
 const TITLES: Record<Period, string> = {
   daily: 'Daily Fan Leaderboard',
@@ -47,7 +42,7 @@ export const leaderboardComponents = (standings: Standings): APIMessageTopLevelC
       components: [
         {
           type: ComponentType.MediaGallery,
-          items: [{ media: { url: BANNERS[period] } }]
+          items: [{ media: { url: BANNER_URL } }]
         },
         {
           type: ComponentType.TextDisplay,

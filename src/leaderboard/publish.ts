@@ -1,4 +1,5 @@
 import { getLogger } from '@logtape/logtape';
+import { bannerAttachment } from 'cafe/banner';
 import type { AppContext } from 'cafe/context';
 import { keys } from 'cafe/redis';
 import { DiscordAPIError, MessageFlags, RESTJSONErrorCodes, type Snowflake } from 'discord.js';
@@ -56,12 +57,13 @@ export const publishLeaderboard = async (context: AppContext, guildId: string, p
   }
 
   const standings = await computeStandings(redis, guildId, period, day);
-  const payload = { components: leaderboardComponents(standings), flags: MessageFlags.IsComponentsV2 } as const;
+  const components = leaderboardComponents(standings);
   const messageId = settings[messageField];
 
   if (messageId) {
     try {
-      await channel.messages.edit(messageId, { components: payload.components });
+      // Re-upload the banner and drop the old attachments so the edited post always shows it.
+      await channel.messages.edit(messageId, { components, files: [bannerAttachment()], attachments: [] });
       logger.info({ message: 'Updated leaderboard', guildId, period, day, ranked: standings.ranked.length });
       return;
     } catch (error) {
@@ -70,7 +72,11 @@ export const publishLeaderboard = async (context: AppContext, guildId: string, p
     }
   }
 
-  const message = await channel.send(payload);
+  const message = await channel.send({
+    components,
+    files: [bannerAttachment()],
+    flags: MessageFlags.IsComponentsV2
+  });
   await redis.hset(keys.guild(guildId), { [messageField]: message.id });
 
   logger.info({ message: 'Posted leaderboard', guildId, period, day, ranked: standings.ranked.length });
