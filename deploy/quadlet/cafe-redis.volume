@@ -1,5 +1,0 @@
-[Unit]
-Description=Redis data for cafe (fan snapshots and settings)
-
-[Volume]
-VolumeName=cafe-redis

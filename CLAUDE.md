@@ -9,7 +9,7 @@ Bun is the only supported runtime. Prefer Bun built-ins (`Bun.cron`, `RedisClien
 - Format: `bun fmt` (check with `bun fmt --check`). Options are in `bunfig.toml` under `[fmt]`.
 - Type check: `bun check`. TypeScript 7 is a dev dependency only so editors can pick it up.
 - Lint: `bun lint`. Rules are in `bunfig.toml` under `[lint]`. It's canary-only for now, so the `lint` script runs `bunx bun@canary lint`.
-- Containers are built with Podman/Buildah from `Containerfile`. Deployment is the Quadlet pod in `deploy/quadlet/`.
+- Containers are built with Podman/Buildah from `Containerfile`.
 
 ### Design notes
 
